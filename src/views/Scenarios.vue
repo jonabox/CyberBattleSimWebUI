@@ -3,7 +3,13 @@
     <v-container fluid>
       <v-row>
         <v-card min-width="100%" class="mb-4 pa-2">
-          <v-card-title>Failure Scenarios</v-card-title>
+          <v-card-actions>
+            <v-card-title>Failure Scenarios</v-card-title>
+            <v-spacer></v-spacer>
+            <v-btn @click.stop="isDialogOpen = true" fab x-small elevation="2" color="secondary">
+              <v-icon dark>mdi-plus</v-icon>
+            </v-btn>
+          </v-card-actions>
           <v-container>
             <v-row justify="start" align="start">
               <v-btn text color="primary accent-4">AMI: Advanced Metering Infrastructure</v-btn>
@@ -47,6 +53,27 @@
         </v-card>
       </v-row>
     </v-container>
+    <v-dialog max-width="1000" v-model="isDialogOpen">
+      <v-card>
+        <v-card-actions>
+          <v-card-title class="headline">Create New Scenario</v-card-title>
+          <v-spacer />
+          <v-icon class="mr-2" color="secondary" @click="isDialogOpen = false">mdi-close</v-icon>
+        </v-card-actions>
+
+        <v-form class="px-4">
+          <v-text-field single-line v-model="scenarioNameInput" label="Scenario Name"></v-text-field>
+          <v-text-field single-line v-model="scenarioNameId" label="Scenario ID"></v-text-field>
+          <v-text-field single-line v-model="scenarioNameDescription" label="Description"></v-text-field>
+        </v-form>
+        
+
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn rounded outlined color="secondary" text @click="isDialogOpen = false">Create</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -54,6 +81,7 @@
 export default {
   data() {
     return {
+      isDialogOpen: true,
       items: [
         {
           id: "AMI5",
