@@ -1,10 +1,5 @@
 <template>
-  <v-app>
-    <v-app-bar app clipped-left color="secondary" dark >
-      <div class="d-flex align-center">
-        <span class="mr-2">Scenario Based Simulation Platform</span>
-      </div>
-    </v-app-bar>
+  <v-app color="secondary">
     <SideBar/>
     <v-main>
       <v-container fluid>
@@ -29,3 +24,9 @@ export default {
   }),
 };
 </script>
+
+<style>
+#app {
+    background-color: var(--v-background-base);
+}
+</style>

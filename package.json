@@ -8,7 +8,10 @@
     "lint": "vue-cli-service lint"
   },
   "dependencies": {
+    "d3": "^5.16.0",
     "vue": "^2.6.11",
+    "vue-d3-charts": "^0.2.8",
+    "vue-d3-network": "^0.1.28",
     "vue-router": "^3.2.0",
     "vuetify": "^2.2.11"
   },

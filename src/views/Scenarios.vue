@@ -12,10 +12,10 @@
           </v-card-actions>
           <v-container>
             <v-row justify="start" align="start">
-              <v-btn text color="primary accent-4">AMI: Advanced Metering Infrastructure</v-btn>
-              <v-btn text color="primary accent-4">DGM: Distribution Grid Management</v-btn>
-              <v-btn text color="primary accent-4">CST: Common Sub-Tree</v-btn>
-              <v-btn text color="primary accent-4">DR: Demand Response</v-btn>
+              <v-btn class="ma-1" outlined>AMI: Advanced Metering Infrastructure</v-btn>
+              <v-btn class="ma-1" outlined>DGM: Distribution Grid Management</v-btn>
+              <v-btn class="ma-1" outlined>CST: Common Sub-Tree</v-btn>
+              <v-btn class="ma-1" outlined>DR: Demand Response</v-btn>
             </v-row>
           </v-container>
         </v-card>
@@ -58,7 +58,7 @@
         <v-card-actions>
           <v-card-title class="headline">Create New Scenario</v-card-title>
           <v-spacer />
-          <v-icon class="mr-2" color="secondary" @click="isDialogOpen = false">mdi-close</v-icon>
+          <v-icon color="secondary" class="mr-2" @click="isDialogOpen = false">mdi-close</v-icon>
         </v-card-actions>
 
         <v-form class="px-4">
@@ -81,7 +81,7 @@
 export default {
   data() {
     return {
-      isDialogOpen: true,
+      isDialogOpen: false,
       items: [
         {
           id: "AMI5",
