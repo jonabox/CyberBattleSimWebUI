@@ -16,4 +16,4 @@ SQLALCHEMY_POOL_RECYCLE = 600
 
 #config the selenium environment
 # SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://root:hkm@LOCAL@270@localhost:3308/cams_scenario_db'
-SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://root:hkm@localhost:3306/cams_scenario_db'
+SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://root:jonabox@localhost:3306/cams_scenario_db'

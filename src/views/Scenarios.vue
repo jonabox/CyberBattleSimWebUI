@@ -54,31 +54,17 @@
       </v-row>
     </v-container>
     <v-dialog max-width="1000" v-model="isDialogOpen">
-      <v-card>
-        <v-card-actions>
-          <v-card-title class="headline">Create New Scenario</v-card-title>
-          <v-spacer />
-          <v-icon color="secondary" class="mr-2" @click="isDialogOpen = false">mdi-close</v-icon>
-        </v-card-actions>
-
-        <v-form class="px-4">
-          <v-text-field single-line v-model="scenarioNameInput" label="Scenario Name"></v-text-field>
-          <v-text-field single-line v-model="scenarioNameId" label="Scenario ID"></v-text-field>
-          <v-text-field single-line v-model="scenarioNameDescription" label="Description"></v-text-field>
-        </v-form>
-        
-
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn rounded outlined color="secondary" text @click="isDialogOpen = false">Create</v-btn>
-        </v-card-actions>
-      </v-card>
+      <CreateNewScenario />
     </v-dialog>
   </div>
 </template>
 
 <script>
+import CreateNewScenario from "@/components/CreateNewScenario";
 export default {
+  components: {
+    CreateNewScenario,
+  },
   data() {
     return {
       isDialogOpen: false,
