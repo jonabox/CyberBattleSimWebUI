@@ -8,11 +8,6 @@
     app
   >
     <v-list>
-      <v-list-item class="pa-5">
-              <v-list-item-avatar>
-                <img src="@/assets/Icon-assets/profile_photo-01.svg">
-              </v-list-item-avatar>
-      </v-list-item>
       <v-list-item v-for="item in items" :key="item.title" :to="item.title" link>
         <v-list-item-icon>
           <v-icon color="secondary">{{ item.icon }}</v-icon>
@@ -51,6 +46,7 @@ export default {
   data() {
     return {
       items: [
+        { title: "Account", icon: "mdi-account" },
         { title: "Scenarios", icon: "mdi-folder" },
         { title: "Details", icon: "mdi-flash-circle" },
         { title: "Simulate", icon: "mdi-sword-cross" },
