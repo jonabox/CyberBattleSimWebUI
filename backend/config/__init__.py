@@ -73,7 +73,7 @@ def __init_logger__():
     from os import path
 
     basepath = path.dirname(__file__)
-    logging_file_path = basepath+'\\logging.json'
+    logging_file_path = basepath+'/logging.json'
     with open(logging_file_path, 'rt') as f:
         config = json.load(f)
         logging.config.dictConfig(config)

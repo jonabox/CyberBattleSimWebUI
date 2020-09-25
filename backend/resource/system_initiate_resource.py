@@ -8,8 +8,8 @@ from db_operator.op_data_persistent import DataPersistor
 def __initial_db__(command):
     #load the data
     importer = ExcelDataImporter()
-    data_file_name = 'data\Database.xlsx'
-    configuration_file_name = 'data\scenario_config.json'
+    data_file_name = 'data/Database.xlsx'
+    configuration_file_name = 'data/scenario_config.json'
     data = importer.load_data_from_excel(data_file_name,configuration_file_name)
     data_importer_status = {}
     if data is not None:

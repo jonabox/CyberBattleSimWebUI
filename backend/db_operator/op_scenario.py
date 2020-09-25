@@ -1,6 +1,6 @@
 
 from config import db,ma
-from model.cyber_scenario_db import Scenario,Scenario_Security_Requirement_Mapping,Scenario_Mitigation_Mapping,Scenario_Attack_Tree,Scenario_Vulnerability_Mapping
+from model.cyber_scenario_db import Scenario,Scenario_Security_Requirement_Mapping,Scenario_Mitigation_Mapping,Scenario_Attack_Tree,Scenario_Vulnerability_Mapping,Scenario_Attack_Tree_Edge
 
 #create the schema that we can use the serialize the data
 class ScenarioSchema(ma.SQLAlchemyAutoSchema):
@@ -27,6 +27,12 @@ class ScenarioMitigationSchema(ma.SQLAlchemyAutoSchema):
 scenario_mitigation_schema = ScenarioMitigationSchema()
 scenario_mitigation_list_schema = ScenarioMitigationSchema(many=True)
 
+class ScenarioEdgeSchema(ma.SQLAlchemyAutoSchema):
+    class Meta:
+        model = Scenario_Attack_Tree_Edge
+scenario_edge_schema = ScenarioEdgeSchema()
+scenario_edge_list_schema = ScenarioEdgeSchema(many=True)
+
 class ScenarioSecurityRequirementSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = Scenario_Security_Requirement_Mapping
@@ -43,6 +49,7 @@ class ScenarioDBOperator(object):
         if scenario_id == 'all':
             #fetch all the secenario information
             scenario_list = db.session.query(Scenario).all()
+            scenario_mitigation_list = db.session.query(Scenario_Attack_Tree_Edge).all()
         else:
             #check whether the scenario_id exist and then return
             scenario_list = db.session.query(Scenario).filter(Scenario.scenario_id==scenario_id).all()
@@ -53,6 +60,7 @@ class ScenarioDBOperator(object):
 
         if len(scenario_list) > 0:
             json_result = scenario_list_schema.dump(scenario_list)
+            json_result += scenario_edge_list_schema.dump(scenario_mitigation_list)
             result['data'] = json_result
 
         return result
@@ -73,6 +81,8 @@ class ScenarioDBOperator(object):
             self.get_scenario_vulnerability(scenario_id,result)
             # scenario mitigation
             self.get_scenario_mitigation(scenario_id,result)
+            # scenario edge
+            self.get_scenario_edge(scenario_id,result)
             # scenario security requirement
             self.get_scenario_security_requirement(scenario_id,result)
         return result
@@ -84,6 +94,15 @@ class ScenarioDBOperator(object):
             result['mitigation_details'] = scenario_mitigation_list_schema.dump(scenario_mitigation_list)
         else:
             result['has_mitigation'] = 0
+        return
+    
+    def get_scenario_edge(self,scenario_id,result):
+        scenario_mitigation_list = db.session.query(Scenario_Attack_Tree_Edge).filter(Scenario_Attack_Tree_Edge.scenario_id==scenario_id).all()
+        if len(scenario_edge_list) > 0:
+            result['has_edges'] = len(scenario_edge_list)
+            result['edge_details'] = scenario_mitigation_list_schema.dump(scenario_edge_list)
+        else:
+            result['has_edges'] = 0
         return
     
     def get_scenario_vulnerability(self,scenario_id,result):
