@@ -49,10 +49,11 @@ class ScenarioDBOperator(object):
         if scenario_id == 'all':
             #fetch all the secenario information
             scenario_list = db.session.query(Scenario).all()
-            scenario_mitigation_list = db.session.query(Scenario_Attack_Tree_Edge).all()
+            scenario_edge_list = db.session.query(Scenario_Attack_Tree_Edge).all()
         else:
             #check whether the scenario_id exist and then return
             scenario_list = db.session.query(Scenario).filter(Scenario.scenario_id==scenario_id).all()
+            scenario_edge_list = {}
         #if don't request detail information, then return the results
         #otherwise, begin to get more detail about each scenario
         result = {}
@@ -60,7 +61,7 @@ class ScenarioDBOperator(object):
 
         if len(scenario_list) > 0:
             json_result = scenario_list_schema.dump(scenario_list)
-            json_result += scenario_edge_list_schema.dump(scenario_mitigation_list)
+            json_result += scenario_edge_list_schema.dump(scenario_edge_list)
             result['data'] = json_result
 
         return result
@@ -97,10 +98,10 @@ class ScenarioDBOperator(object):
         return
     
     def get_scenario_edge(self,scenario_id,result):
-        scenario_mitigation_list = db.session.query(Scenario_Attack_Tree_Edge).filter(Scenario_Attack_Tree_Edge.scenario_id==scenario_id).all()
+        scenario_edge_list = db.session.query(Scenario_Attack_Tree_Edge).filter(Scenario_Attack_Tree_Edge.scenario_id==scenario_id).all()
         if len(scenario_edge_list) > 0:
             result['has_edges'] = len(scenario_edge_list)
-            result['edge_details'] = scenario_mitigation_list_schema.dump(scenario_edge_list)
+            result['edge_details'] = scenario_edge_list_schema.dump(scenario_edge_list)
         else:
             result['has_edges'] = 0
         return

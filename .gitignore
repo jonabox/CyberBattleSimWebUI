@@ -5,6 +5,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
+*.pyc
 __pycache__/
 backend/config/__pycache__/
 backend/model/__pycache__/
