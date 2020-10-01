@@ -43,38 +43,20 @@
                  <v-text-field label="Component Selected" v-model="scenarioId"></v-text-field>
                  <v-select :items="items" label="Assign Actor"></v-select>
                  <v-select chips :items="items" label="Add Vulnerability"></v-select>
-                 <v-select chips :items="items" label="Add Mitigations"></v-select>
               </v-col>
             </v-row>
           </v-container>
         </v-card>
       </v-tab-item>
-      <!-- Attack Graph -->
+      <!-- Response Plan -->
       <v-tab-item>
         <v-card class="pa-10" flat>
           <v-container>
             <v-row>
               <v-col>
-                <v-card-text>Component Selected</v-card-text>
-                <v-simple-table fixed-header>
-                  <template>
-                    <thead>
-                      <tr>
-                        <th class="text-left">ID</th>
-                        <th class="text-left">Name</th>
-                        <th class="text-left">Description</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr v-for="item in tableItems" :key="item.id">
-                        <td>{{ item.id }}</td>
-                        <td>{{ item.name }}</td>
-                        <td>{{ item.target }}</td>
-                        <td>{{ item.logic }}</td>
-                      </tr>
-                    </tbody>
-                  </template>
-                </v-simple-table>
+                 <v-text-field label="Component Selected" v-model="scenarioId"></v-text-field>
+                 <v-select :items="items" label="Assign Actor"></v-select>
+                 <v-select chips :items="items" label="Add Mitigations"></v-select>
               </v-col>
               <v-col>
                 <Graph />
@@ -105,7 +87,7 @@ export default {
     return {
       tab: null,
       scenarioId: null,
-      items: ["Foo", "Bar", "Fizz", "Buzz"],
+      items: ["Advanced Metering Infrastructure", "Distributed Energy Resources", "Distribution Grid Management", "Demand Response", "Electric Transportation", "Generation", "Generic", "Wide Area Monitoring, Protection, and Control"],
       tableItems: [
         {
           id: null,

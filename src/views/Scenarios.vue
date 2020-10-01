@@ -38,7 +38,7 @@
             <v-card-title>Selected Scenarios</v-card-title>
             <v-spacer></v-spacer>
             <v-btn
-              @click="isDialogOpen = true"
+              href="/Details"
               small
               elevation="2"
               color="secondary"
