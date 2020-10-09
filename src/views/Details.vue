@@ -11,22 +11,18 @@
             Scenarios</v-card-text
           >
           <v-container min-width="100%">
-            <v-row min-width="100%" min-height="100%">
-              <v-col>
+            <v-row>
                 <!-- Graph Component -->
                 <v-card min-width="100%" class="ma-2">
                   <v-card-title>Graph Component</v-card-title>
-                  <div>
-                    {{ parsedData }}
-                    <d3-network
-                      :net-nodes="nodes"
-                      :net-links="links"
-                      :options="options"
-                      @node-click="nodeClick=!nodeClick"
-                    ></d3-network>
-                  </div>
+
+                  <d3-network
+                    :net-nodes="nodes"
+                    :net-links="links"
+                    :options="options"
+                    @node-click="nodeClick = !nodeClick"
+                  ></d3-network>
                 </v-card>
-              </v-col>
               <v-col>
                 <!-- Description -->
                 <v-card min-width="100%" class="ma-2">
@@ -174,7 +170,7 @@ export default {
       links: [],
       options: {
         force: 1000,
-        nodeSize: 20,
+        nodeSize: 50,
         nodeLabels: true,
         linkWidth: 5,
       },
@@ -205,46 +201,17 @@ export default {
     };
   },
   mounted: function () {
-    // this.nodes.push(
-    //       {
-    //         id: 0,
-    //         name: "mitigations",
-    //         _color: "blue"
-    //       },
-    //       {
-    //         id: 1,
-    //         name: "security requirements",
-    //       },
-    //       // {
-    //       //   id: 2,
-    //       //   name: "vulnerability details"
-    //       // }
-    //     )
-    // for (var mitigation of scenario["mitigation_details"]){
-    //     this.nodes.push(
-    //       {
-    //         id: mitigation.id,
-    //       }
-    //     )
-    //     this.links.push(
-    //       { sid: mitigation.id, tid: 0, _color:'blue' },
-    //     )
-    //   }
-    for (var requirement of this.scenarioToNodes["AMI1"]){
-        this.nodes.push(
-          {
-            id: requirement.attack_item_source,
-          }
-        )
-        this.nodes.push(
-          {
-            id: requirement.attack_item_target,
-          }
-        )
-        this.links.push(
-          { sid: requirement.attack_item_source, tid: requirement.attack_item_target },
-        )
-      }
-  }
+    for (let requirement of this.scenarioToNodes["AMI1"]) {
+      this.nodes.push({
+        id: requirement.attack_item_source,
+      });
+    }
+    for (let requirement of this.scenarioToNodes["AMI1"]) {
+      this.links.push({
+        sid: requirement.attack_item_target,
+        tid: requirement.attack_item_source,
+      });
+    }
+  },
 };
 </script>
