@@ -1,9 +1,10 @@
 <template>
+  <div>
   <v-data-table :headers="headers" :items="desserts" sort-by="id" class="elevation-1">
     <template v-slot:top>
       <v-toolbar flat color="white">
         <v-toolbar-title>Add Components</v-toolbar-title>
-        <v-divider class="mx-4" inset vertical></v-divider>
+
         <v-spacer></v-spacer>
         <v-dialog v-model="dialog" max-width="500px">
           <template v-slot:activator="{ on, attrs }">
@@ -50,12 +51,35 @@
       <v-btn color="primary" @click="initialize">Reset</v-btn>
     </template>
   </v-data-table>
+  <d3-network
+                  :net-nodes="nodes"
+                  :net-links="links"
+                  :options="options"
+                  @node-click="nodeClicked"
+                ></d3-network>
+  </div>
 </template>
 
 <script>
 // import scenario from "../assets/scenario_detail";
+import D3Network from "vue-d3-network";
+const rectSvg = '<svg version="1.1"><rect width="25" height="10"/></svg>';
 export default {
+  components: { D3Network, },
   data: () => ({
+    // Graph Components
+      nodeClick: false,
+      nodeDecription: "None",
+      nodeRisks: "None",
+      nodes: [],
+      links: [],
+      options: {
+        force: 300,
+        nodeSize: 25,
+        nodeLabels: true,
+        linkWidth: 2,
+      },
+    // Other Components
     dialog: false,
     headers: [
       {
@@ -102,6 +126,28 @@ export default {
   },
 
   methods: {
+    reload: function (scenarioList) {
+      let added = new Set();
+      for (let scenario of scenarioList) {
+        console.log(this.selectedScenarioID);
+        for (let requirement of this.scenarioToNodes[scenario]) {
+          let source = { id: requirement.attack_item_source, svgSym: rectSvg };
+          let target = { id: requirement.attack_item_target, svgSym: rectSvg };
+          if (!added.has(source.id)) {
+            this.nodes.push(source);
+            added.add(source.id);
+          }
+          if (!added.has(target.id)) {
+            this.nodes.push(target);
+            added.add(target.id);
+          }
+          this.links.push({
+            sid: requirement.attack_item_source,
+            tid: requirement.attack_item_target,
+          });
+        }
+      }
+    },
     initialize() {
       this.desserts = [
         {

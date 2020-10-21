@@ -8,6 +8,7 @@
 <script>
 import D3Network from "vue-d3-network";
 import scenario from '../assets/scenario_detail'
+const nodeIcon1 = '<svg version="1.1"><rect width="20" height="20"/></svg>'
 export default {
   components: {
     D3Network,
@@ -23,7 +24,7 @@ export default {
         force: 1000,
         nodeSize: 20,
         nodeLabels: true,
-        linkWidth:5
+        linkWidth:2
       }
     };
   },
@@ -32,12 +33,10 @@ export default {
           {
             id: 0,
             name: "mitigations",
-            _color: "blue"
           },
           {
             id: 1,
             name: "security requirements",
-            _color: "orange"
           },
           // {
           //   id: 2,
@@ -47,21 +46,21 @@ export default {
     for (var mitigation of scenario["mitigation_details"]){
         this.nodes.push(
           {
-            id: mitigation.id,
+            id: mitigation.id, 
           }
         )
         this.links.push(
-          { sid: mitigation.id, tid: 0, _color:'blue' },
+          { sid: mitigation.id, tid: 0 },
         )
       }
     for (var requirement of scenario["security_requirement_details"]){
         this.nodes.push(
           {
-            id: requirement.id,
+            id: requirement.id, svgSym:nodeIcon1
           }
         )
         this.links.push(
-          { sid: requirement.id, tid: 1, _color:'orange' },
+          { sid: requirement.id, tid: 1 },
         )
       }
     // for (var vulnerability of scenario["vulnerability_details"]){
@@ -77,4 +76,4 @@ export default {
   },
 };
 </script>
-<style src="vue-d3-network/dist/vue-d3-network.css"></style>
+<style src="@/assets/vue-d3-network.css"></style>

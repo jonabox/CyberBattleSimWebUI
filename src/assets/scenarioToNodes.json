@@ -875,78 +875,78 @@
             "scenario_id": "DGM11"
         }
     ],
-    "GEN1": [
+    "Generic1": [
         {
             "attack_item_source": "1",
             "attack_item_target": "2",
             "id": 121,
             "logical_type": null,
-            "scenario_id": "GEN1"
+            "scenario_id": "Generic1"
         },
         {
             "attack_item_source": "1",
             "attack_item_target": "3",
             "id": 122,
             "logical_type": null,
-            "scenario_id": "GEN1"
+            "scenario_id": "Generic1"
         },
         {
             "attack_item_source": "2",
             "attack_item_target": "OR#2#3",
             "id": 123,
             "logical_type": "OR",
-            "scenario_id": "GEN1"
+            "scenario_id": "Generic1"
         },
         {
             "attack_item_source": "3",
             "attack_item_target": "OR#2#3",
             "id": 124,
             "logical_type": "OR",
-            "scenario_id": "GEN1"
+            "scenario_id": "Generic1"
         },
         {
             "attack_item_source": "OR#2#3",
             "attack_item_target": "4",
             "id": 125,
             "logical_type": null,
-            "scenario_id": "GEN1"
+            "scenario_id": "Generic1"
         }
     ],
-    "GEN15": [
+    "Generic15": [
         {
             "attack_item_source": "1",
             "attack_item_target": "AND#1#2",
             "id": 126,
             "logical_type": "AND",
-            "scenario_id": "GEN15"
+            "scenario_id": "Generic15"
         },
         {
             "attack_item_source": "2",
             "attack_item_target": "AND#1#2",
             "id": 127,
             "logical_type": "AND",
-            "scenario_id": "GEN15"
+            "scenario_id": "Generic15"
         },
         {
             "attack_item_source": "AND#1#2",
             "attack_item_target": "3",
             "id": 128,
             "logical_type": null,
-            "scenario_id": "GEN15"
+            "scenario_id": "Generic15"
         },
         {
             "attack_item_source": "3",
             "attack_item_target": "4",
             "id": 129,
             "logical_type": null,
-            "scenario_id": "GEN15"
+            "scenario_id": "Generic15"
         },
         {
             "attack_item_source": "4",
             "attack_item_target": "5",
             "id": 130,
             "logical_type": null,
-            "scenario_id": "GEN15"
+            "scenario_id": "Generic15"
         }
     ],
     "AMI9": [

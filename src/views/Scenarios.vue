@@ -24,7 +24,7 @@
                 outlined
                 v-for="domain in domains"
                 v-on:click="selected = domain"
-                :key="domain"
+                :key="domain.id"
                 >{{ domain }}</v-btn
               >
             </v-row>
@@ -37,7 +37,7 @@
           <v-card-actions>
             <v-card-title>Selected Scenarios</v-card-title>
             <v-spacer></v-spacer>
-            <v-btn
+            <!-- <v-btn
               @click.stop="isDetailsDialogOpen = true"
               small
               elevation="2"
@@ -45,7 +45,7 @@
             >
               View Details
               <v-icon small right dark>mdi-magnify</v-icon>
-            </v-btn>
+            </v-btn> -->
           </v-card-actions>
           <v-container>
             <v-row justify="start" align="start">
@@ -53,16 +53,16 @@
                 class="ma-1"
                 outlined
                 v-for="scenario in selectedScenarios"
-                v-on:click="selected = domain"
-                :key="scenario"
+                v-on:click="selectedDomain = domain"
+                :key="scenario.id"
                 >{{ scenario.scenario_id }}</v-btn
               >
             </v-row>
           </v-container>
         </v-card>
       </v-row>
-      <div v-if="selected">
-        <v-row>
+      <!-- Search Bar -->
+      <!-- <v-row>
           <v-card min-width="100%" class="mb-4 px-2">
             <v-text-field
               prepend-icon="mdi-magnify"
@@ -71,198 +71,171 @@
               single-line
             ></v-text-field>
           </v-card>
-        </v-row>
-        <v-row>
-          <v-card min-width="100%" class="mb-4 pa-2">
-            <v-simple-table fixed-header>
-              <template>
-                <thead>
-                  <tr>
-                    <th class="text-left">ID</th>
-                    <th class="text-left">Name</th>
-                    <th class="text-left">Source</th>
-                    <th class="text-left">Add</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    v-for="item in domainToScenarios[selected]"
-                    :key="item.id"
-                  >
-                    <td>{{ item.scenario_id }}</td>
-                    <td>{{ item.scenario_name }}</td>
-                    <td>{{ item.scenario_source }}</td>
-                    <td>
-                      <v-icon small class="mr-2" @click="addScenario(item)">
-                        mdi-plus
-                      </v-icon>
-                    </td>
-                  </tr>
-                </tbody>
-              </template>
-            </v-simple-table>
+        </v-row> -->
+      <v-row v-if="selected">
+        <v-card min-width="100%" class="mb-4 pa-2">
+          <v-simple-table fixed-header>
+            <template>
+              <thead>
+                <tr>
+                  <th class="text-left">ID</th>
+                  <th class="text-left">Name</th>
+                  <th class="text-left">Source</th>
+                  <th class="text-left">Add</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="item in domainToScenarios[selected]"
+                  :key="item.scenario_id"
+                >
+                  <td>{{ item.scenario_id }}</td>
+                  <td>{{ item.scenario_name }}</td>
+                  <td>{{ item.scenario_source }}</td>
+                  <td>
+                    <v-icon small class="mr-2" @click="addScenario(item)">
+                      mdi-plus
+                    </v-icon>
+                  </td>
+                </tr>
+              </tbody>
+            </template>
+          </v-simple-table>
+        </v-card>
+      </v-row>
+      <v-row justify="start">
+        <v-col>
+          <!-- Graph Component -->
+          <v-card class="pa-2">
+            <v-card-title>
+              Graph Component
+            </v-card-title>
+            <d3-network
+              :net-nodes="nodes"
+              :net-links="links"
+              :options="options"
+              @node-click="nodeClicked"
+            ></d3-network>
           </v-card>
-        </v-row>
-      </div>
-    </v-container>
-    <v-dialog max-width="1000" v-model="isAddDialogOpen">
-      <CreateNewScenario />
-    </v-dialog>
-    <v-dialog min-width="100%" v-model="isDetailsDialogOpen">
-      <v-card>
-        <v-container fluid>
-        <v-row>
-          <v-card
-            color="rgb(0, 0, 0, 0)"
-            min-width="100%"
-            flat
-            class="mb-4 pa-2"
-          >
-            <v-card-actions>
-              <v-card-title>Scenario Details</v-card-title>
-            </v-card-actions>
-            <v-container min-width="100%">
-              <v-row>
-                <!-- Graph Component -->
-                <v-card min-width="100%" class="ma-2">
-                  <v-card-title>Graph Component</v-card-title>
-
-                  <d3-network
-                    :net-nodes="nodes"
-                    :net-links="links"
-                    :options="options"
-                    @node-click="nodeClick = !nodeClick"
-                  ></d3-network>
+        </v-col>
+        <v-col>
+          <!-- Description -->
+          <v-card min-width="100%" class="mb-2">
+            <v-card-title>Description</v-card-title>
+            <v-card-text v-if="nodeClick">
+              {{ nodeDecription }}
+            </v-card-text>
+          </v-card>
+          <!-- Related Risks -->
+          <v-card min-width="100%" class="mb-2">
+            <v-card-title>Related Risks</v-card-title>
+            <v-card-text v-if="nodeClick">
+              {{ nodeRisks }}
+            </v-card-text>
+          </v-card>
+          <!-- Mitigations -->
+          <v-card min-width="100%" class="mb-2">
+            <v-container>
+              <v-row justify="space-around">
+                <v-card flat>
+                  <v-card-title>CST#4</v-card-title>
                 </v-card>
-                <v-col>
-                  <!-- Description -->
-                  <v-card min-width="100%" class="ma-2">
-                    <v-card-title>Description</v-card-title>
-                    <v-card-text v-if="nodeClick">
-                      Lorem ipsum dolor sit amet, consectetuer adipiscing elit,
-                      sed diam nonummy nibh euismod tincidunt ut laoreet dolore
-                      magna aliquam erat volutpat. Ut wisi enim ad minim veniam,
-                      quis nostrud exerci tation ullamcorper suscipit lobortis
-                      nisl ut Lorem ipsum dolor sit amet, consectetuer
-                      adipiscing elit, sed diam nonummy nibh euismod tincidunt
-                      ut laoreet dolore magna ali
-                    </v-card-text>
-                  </v-card>
-                  <!-- Related Risks -->
-                  <v-card min-width="100%" class="ma-2">
-                    <v-card-title>Related Risks</v-card-title>
-                    <v-card-text v-if="nodeClick">
-                      Lorem ipsum dolor sit Lorem ipsum dolor sit amet,
-                      consectetuer adipiscing elit, sed diam Lorem ipsum dolor
-                      sit Lorem ipsum dolor sit amet, consectetuer adipiscing
-                      elit, sed diam Lorem ipsum dolor sit Lorem ipsum dolor sit
-                      amet, consectetuer adipiscing elit, sed diam
-                    </v-card-text>
-                  </v-card>
-                  <!-- Mitigations -->
-                  <v-card min-width="100%" class="ma-2">
-                    <v-container>
-                      <v-row justify="space-around">
-                        <v-card flat>
-                          <v-card-title>CST#4</v-card-title>
-                        </v-card>
-                        <v-card flat>
-                          <v-card-title>Risk Score</v-card-title>
-                          <v-card-text>78</v-card-text>
-                        </v-card>
-                        <v-card flat>
-                          <v-card-title>Mitigations</v-card-title>
-                          <v-divider />
-                          <v-container v-if="nodeClick">
-                            <v-row>
-                              <v-col cols="9">
-                                <v-card-text
-                                  >Lorem ipsum dolor sit amet, consectetuer
-                                  adipiscing elit, Lorem ipsum</v-card-text
-                                >
-                              </v-col>
-                              <v-col>
-                                <v-btn
-                                  class="ma-2"
-                                  rounded
-                                  outlined
-                                  color="secondary"
-                                  text
-                                  >Select</v-btn
-                                >
-                              </v-col>
-                            </v-row>
-                            <v-divider />
-                            <v-row>
-                              <v-col cols="9">
-                                <v-card-text
-                                  >Lorem ipsum dolor sit amet, consectetuer
-                                  adipiscing elit, Lorem ipsum</v-card-text
-                                >
-                              </v-col>
-                              <v-col>
-                                <v-btn
-                                  class="ma-2"
-                                  rounded
-                                  outlined
-                                  color="secondary"
-                                  text
-                                  >Select</v-btn
-                                >
-                              </v-col>
-                            </v-row>
-                            <v-divider />
-                            <v-row>
-                              <v-col cols="9">
-                                <v-card-text
-                                  >Lorem ipsum dolor sit amet, consectetuer
-                                  adipiscing elit, Lorem ipsum</v-card-text
-                                >
-                              </v-col>
-                              <v-col>
-                                <v-btn
-                                  class="ma-2"
-                                  rounded
-                                  outlined
-                                  color="secondary"
-                                  text
-                                  >Select</v-btn
-                                >
-                              </v-col>
-                            </v-row>
-                            <v-divider />
-                            <v-row>
-                              <v-col cols="9">
-                                <v-card-text
-                                  >Lorem ipsum dolor sit amet, consectetuer
-                                  adipiscing elit, Lorem ipsum</v-card-text
-                                >
-                              </v-col>
-                              <v-col>
-                                <v-btn
-                                  class="ma-2"
-                                  rounded
-                                  outlined
-                                  color="secondary"
-                                  text
-                                  >Select</v-btn
-                                >
-                              </v-col>
-                            </v-row>
-                            <v-divider />
-                          </v-container>
-                        </v-card>
-                      </v-row>
-                    </v-container>
-                  </v-card>
-                </v-col>
+                <v-card flat>
+                  <v-card-title>Risk Score</v-card-title>
+                  <v-card-text>78</v-card-text>
+                </v-card>
+                <v-card flat>
+                  <v-card-title>Mitigations</v-card-title>
+                  <v-divider />
+                  <v-container v-if="nodeClick">
+                    <v-row>
+                      <v-col cols="9">
+                        <v-card-text
+                          >Lorem ipsum dolor sit amet, consectetuer adipiscing
+                          elit, Lorem ipsum</v-card-text
+                        >
+                      </v-col>
+                      <v-col>
+                        <v-btn
+                          class="ma-2"
+                          rounded
+                          outlined
+                          color="secondary"
+                          text
+                          >Select</v-btn
+                        >
+                      </v-col>
+                    </v-row>
+                    <v-divider />
+                    <v-row>
+                      <v-col cols="9">
+                        <v-card-text
+                          >Lorem ipsum dolor sit amet, consectetuer adipiscing
+                          elit, Lorem ipsum</v-card-text
+                        >
+                      </v-col>
+                      <v-col>
+                        <v-btn
+                          class="ma-2"
+                          rounded
+                          outlined
+                          color="secondary"
+                          text
+                          >Select</v-btn
+                        >
+                      </v-col>
+                    </v-row>
+                    <v-divider />
+                    <v-row>
+                      <v-col cols="9">
+                        <v-card-text
+                          >Lorem ipsum dolor sit amet, consectetuer adipiscing
+                          elit, Lorem ipsum</v-card-text
+                        >
+                      </v-col>
+                      <v-col>
+                        <v-btn
+                          class="ma-2"
+                          rounded
+                          outlined
+                          color="secondary"
+                          text
+                          >Select</v-btn
+                        >
+                      </v-col>
+                    </v-row>
+                    <v-divider />
+                    <v-row>
+                      <v-col cols="9">
+                        <v-card-text
+                          >Lorem ipsum dolor sit amet, consectetuer adipiscing
+                          elit, Lorem ipsum</v-card-text
+                        >
+                      </v-col>
+                      <v-col>
+                        <v-btn
+                          class="ma-2"
+                          rounded
+                          outlined
+                          color="secondary"
+                          text
+                          >Select</v-btn
+                        >
+                      </v-col>
+                    </v-row>
+                    <v-divider />
+                  </v-container>
+                </v-card>
               </v-row>
             </v-container>
           </v-card>
-        </v-row>
-      </v-container>
-      </v-card>
+        </v-col>
+      </v-row>
+    </v-container>
+    <v-dialog v-model="isAddDialogOpen">
+      <CreateNewScenario />
     </v-dialog>
+    <!-- Details Dialog -->
   </div>
 </template>
 
@@ -272,6 +245,7 @@ import domainToScenariosImport from "../assets/domainToScenarios";
 import D3Network from "vue-d3-network";
 // import scenario from "../assets/scenario_detail";
 import scenarioToNodesImport from "../assets/scenarioToNodes";
+const rectSvg = '<svg version="1.1"><rect width="25" height="10"/></svg>';
 export default {
   components: {
     CreateNewScenario,
@@ -281,6 +255,37 @@ export default {
     addScenario: function (scenario) {
       if (!this.selectedScenarios.includes(scenario)) {
         this.selectedScenarios.push(scenario);
+        this.selectedScenarioID.push(scenario.scenario_id)
+        this.reload(this.selectedScenarioID);
+      }
+    },
+    nodeClicked (event, node) {
+      console.log(event);
+      this.nodeClick = true;
+      this.nodeDecription = node.id;
+      this.nodeRisks = node.id;
+      
+      },
+    reload: function (scenarioList) {
+      let added = new Set();
+      for (let scenario of scenarioList) {
+        console.log(this.selectedScenarioID);
+        for (let requirement of this.scenarioToNodes[scenario]) {
+          let source = { id: requirement.attack_item_source, svgSym: rectSvg };
+          let target = { id: requirement.attack_item_target, svgSym: rectSvg };
+          if (!added.has(source.id)) {
+            this.nodes.push(source);
+            added.add(source.id);
+          }
+          if (!added.has(target.id)) {
+            this.nodes.push(target);
+            added.add(target.id);
+          }
+          this.links.push({
+            sid: requirement.attack_item_source,
+            tid: requirement.attack_item_target,
+          });
+        }
       }
     },
   },
@@ -288,20 +293,23 @@ export default {
     return {
       // Graph Components
       nodeClick: false,
+      nodeDecription: "None",
+      nodeRisks: "None",
       scenarioToNodes: scenarioToNodesImport,
       nodes: [],
       links: [],
       options: {
-        force: 1000,
-        nodeSize: 50,
-        nodeLabels: true,
-        linkWidth: 5,
+        force: 300,
+        nodeSize: 25,
+        nodeLabels: false,
+        linkWidth: 2,
       },
       // Other Components
       isAddDialogOpen: false,
-      isDetailsDialogOpen: true,
+      isDetailsDialogOpen: false,
       selected: "Generic",
       selectedScenarios: [],
+      selectedScenarioID: [],
       domainToScenarios: domainToScenariosImport,
       domains: [
         "Generic",
@@ -337,18 +345,8 @@ export default {
       ],
     };
   },
-  mounted: function () {
-    for (let requirement of this.scenarioToNodes["AMI1"]) {
-      this.nodes.push({
-        id: requirement.attack_item_source,
-      });
-    }
-    for (let requirement of this.scenarioToNodes["AMI1"]) {
-      this.links.push({
-        sid: requirement.attack_item_target,
-        tid: requirement.attack_item_source,
-      });
-    }
+  mounted() {
+    this.reload([])
   },
 };
 </script>
