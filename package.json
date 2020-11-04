@@ -8,6 +8,7 @@
     "lint": "vue-cli-service lint"
   },
   "dependencies": {
+    "axios": "^0.21.0",
     "d3": "^5.16.0",
     "vue": "^2.6.11",
     "vue-d3-charts": "^0.2.8",

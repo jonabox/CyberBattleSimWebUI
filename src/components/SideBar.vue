@@ -48,9 +48,10 @@ export default {
       items: [
         { title: "Account", icon: "mdi-account" },
         { title: "Scenarios", icon: "mdi-folder" },
-        { title: "Details", icon: "mdi-flash-circle" },
-        { title: "Simulate", icon: "mdi-sword-cross" },
-        { title: "Statistics", icon: "mdi-chart-bar" },
+        { title: "Graph", icon: "mdi-graph" },
+        // { title: "Details", icon: "mdi-flash-circle" },
+        // { title: "Simulate", icon: "mdi-sword-cross" },
+        // { title: "Statistics", icon: "mdi-chart-bar" },
       ],
     };
   },

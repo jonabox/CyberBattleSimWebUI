@@ -2,16 +2,16 @@
   <v-card>
     <v-tabs dark v-model="tab" background-color="secondary" grow>
       <v-tab>1. Basic Information</v-tab>
-      <v-tab>2. Attack Graph</v-tab>
-      <v-tab>3. Vulnerabilities</v-tab>
-      <v-tab>4. Response Plan</v-tab>
+      <v-tab>2. Graph</v-tab>
+      <!-- <v-tab>3. Vulnerabilities</v-tab>
+      <v-tab>4. Response Plan</v-tab> -->
     </v-tabs>
     <!-- Basic Info -->
     <v-tabs-items v-model="tab">
       <v-tab-item>
         <v-card class="pa-10" flat>
           <v-select :items="items" label="Select Domain"></v-select>
-          <v-text-field label="Scenario ID" v-model="scenarioId"></v-text-field>
+          <!-- <v-text-field label="Scenario ID" v-model="scenarioId"></v-text-field> -->
           <v-text-field
             label="Scenario Name"
             v-model="scenarioName"
@@ -24,26 +24,20 @@
       </v-tab-item>
       <!-- Attack Graph -->
       <v-tab-item>
+        <v-btn-toggle>
+        </v-btn-toggle>
         <v-card class="pa-10" flat>
-          <v-container>
-            <v-row>
-              <v-col>
-                <NewComponentTable />
-              </v-col>
-              <v-col>
-                <Graph />
-              </v-col>
-            </v-row>
-          </v-container>
+          <!-- <NewComponentTable /> -->
+          <Graph/>
         </v-card>
       </v-tab-item>
       <!-- Vulnerabilities -->
-      <v-tab-item>
+      <!-- <v-tab-item>
         <v-card class="pa-10" flat>
           <v-container>
             <v-row>
               <v-col>
-                <Graph />
+            
               </v-col>
               <v-col>
                 <v-text-field
@@ -59,9 +53,9 @@
             </v-row>
           </v-container>
         </v-card>
-      </v-tab-item>
+      </v-tab-item> -->
       <!-- Response Plan -->
-      <v-tab-item>
+      <!-- <v-tab-item>
         <v-card class="pa-10" flat>
           <v-container>
             <v-row>
@@ -82,7 +76,7 @@
             </v-row>
           </v-container>
         </v-card>
-      </v-tab-item>
+      </v-tab-item> -->
     </v-tabs-items>
     <v-card class="pa-5" flat>
       <v-card-actions>
@@ -99,11 +93,12 @@
 
 <script>
 import Graph from "@/components/Graph";
-import NewComponentTable from "@/components/NewComponentTable";
-const rectSvg = '<svg version="1.1"><rect width="25" height="10"/></svg>';
+// import NewComponentTable from "@/components/NewComponentTable";
+
+const rectSvg = '<svg version="1.1"><rect width="25" height="15"/></svg>';
 // import scenario from '../assets/scenario_detail'
 export default {
-  components: { Graph, NewComponentTable },
+  components: { Graph },
   methods: {
     reload: function (scenarioList) {
       let added = new Set();
