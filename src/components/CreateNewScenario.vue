@@ -26,7 +26,7 @@
       <v-tab-item>
         <v-btn-toggle>
         </v-btn-toggle>
-        <v-card class="pa-10" flat>
+        <v-card class="px-10" flat>
           <!-- <NewComponentTable /> -->
           <Graph/>
         </v-card>
