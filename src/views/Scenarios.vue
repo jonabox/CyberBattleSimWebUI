@@ -231,7 +231,7 @@ export default {
     },
   search(scenario) {
       axios
-        .get("http://localhost:5003/cams/api/v1/scenario_detail?id=" + scenario)
+        .get("http://10.138.7.72:5003/cams/api/v1/scenario_detail?id=" + scenario)
         .then(response => {
           console.log("Success!");
           this.scenarioData = response.data
