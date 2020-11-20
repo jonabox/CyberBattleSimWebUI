@@ -127,14 +127,14 @@
             </v-card-text>
           </v-card>
           <!-- Description -->
-          <v-card min-width="100%" class="mb-2" v-if="nodeClick">
+          <v-card min-width="100%" class="mb-2">
             <v-card-title>Description</v-card-title>
             <v-card-text >
               {{ scenarioDetails }}
             </v-card-text>
           </v-card>
           <!-- Vulnerabilities -->
-          <v-card min-width="100%" class="mb-2" v-if="nodeClick">
+          <v-card min-width="100%" class="mb-2">
             <v-card-title>Vulnerabilities</v-card-title>
             <div v-for="vulnerability in vulnerabilities" :key="vulnerability.id">
               <v-card-subtitle v-text="vulnerability.vulnerability_id + ': ' + vulnerability.vulnerability_name"/>
@@ -195,6 +195,7 @@ export default {
       if (!this.selectedScenarios.includes(scenario)) {
         this.selectedScenarios.push(scenario);
         this.selectedScenarioID.push(scenario.scenario_id);
+        this.search(scenario.scenario_id);
         this.reload(this.selectedScenarioID);
       }
     },
@@ -214,6 +215,24 @@ export default {
         for (let requirement of this.scenarioToNodes[scenario]) {
           let source = { id: requirement.attack_item_source, scenario: scenario, svgSym: rectSvg };
           let target = { id: requirement.attack_item_target, scenario: scenario, svgSym: rectSvg };
+          if(source.id.includes("OR")){
+            source.svgSym = null
+            source._color = "#fed8b1";
+          }
+          else if(source.id.includes("AND")){
+            source.svgSym = null
+            source._color = "#add8e6";
+          }
+          if(target.id.includes("OR")){
+            target.svgSym = null
+            target._color = "#fed8b1";
+          }
+          else if(target.id.includes("AND")){
+            target.svgSym = null
+            target._color = "#add8e6";
+          }
+
+            
           if (!added.has(source.id)) {
             this.nodes.push(source);
             added.add(source.id);
