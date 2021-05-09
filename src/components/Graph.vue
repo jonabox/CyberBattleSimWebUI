@@ -1,55 +1,125 @@
 <template>
   <div>
+    <v-btn class="ma-2" outlined href="custom.py" download>
+      Generate Environment File
+    </v-btn>
     <v-card-title> {{ tool }} mode </v-card-title>
+    <!-- new -->
+    <v-form v-if="lastSelected" ref="form" v-model="valid" lazy-validation>
+      <v-container>
+        <v-row>
+          <v-col>
+            <v-text-field
+              v-model="lastSelected.name"
+              :counter="10"
+              :rules="nameRules"
+              label="Name"
+              required
+            ></v-text-field>
 
+            <v-text-field v-model="value" label="value" required></v-text-field>
+
+            <v-select
+              v-model="lastSelected.services"
+              :items="servicesList"
+              :rules="[(v) => !!v || 'Item is required']"
+              label="services"
+              required
+            ></v-select>
+          </v-col>
+          <v-col>
+            <v-select
+              v-model="lastSelected.firewall"
+              :items="servicesList"
+              :rules="[(v) => !!v || 'Item is required']"
+              label="firewall"
+              required
+            ></v-select>
+
+            <v-text-field
+              v-model="lastSelected.properties"
+              label="properties"
+              required
+            ></v-text-field>
+
+            <v-text-field
+              v-model="lastSelected.owned_string"
+              label="owned string"
+              required
+            ></v-text-field>
+          </v-col>
+        </v-row>
+      </v-container>
+
+      {{ vulnerabilities }}
+      <v-container
+        v-for="vulnerability in lastSelected.vulnerabilities"
+        v-bind:key="vulnerability.id"
+      >
+        <v-divider />
+        <v-row>
+          <v-col>
+            <v-text-field
+              v-model="vulnerability.vulnerability_name"
+              label="vulnerability name"
+              required
+            ></v-text-field>
+
+            <v-text-field
+              v-model="vulnerability.vulnerability_outcome"
+              label="vulnerability outcome"
+              required
+            ></v-text-field>
+
+            <v-text-field
+              v-model="vulnerability.vulnerability_description"
+              label="vulnerability description"
+              required
+            ></v-text-field>
+          </v-col>
+          <v-col>
+            <v-text-field
+              v-model="vulnerability.vulnerability_reward_string"
+              label="vulnerability reward string"
+              required
+            ></v-text-field>
+
+            <v-text-field
+              v-model="vulnerability.vulnerability_cost"
+              label="vulnerability cost"
+              required
+            ></v-text-field>
+          </v-col>
+        </v-row>
+      </v-container>
+      <v-btn class="ma-4" @click="addVulnerability()">
+        add new vulnerability
+      </v-btn>
+      <v-btn class="ma-4" @click="removeLastVulnerability()">
+        remove last vulnerability
+      </v-btn>
+    </v-form>
+
+    <!-- /new -->
     <v-spacer />
-    <v-container fluid>
-      <v-row>
-        <v-col>
-          <v-btn color="secondary" v-on:click="tool = 'parent'"> add </v-btn>
-        </v-col>
-        <v-col>
-          <v-btn color="secondary" v-on:click="tool = 'and'"> and </v-btn>
-        </v-col>
-        <v-col>
-          <v-btn color="secondary" v-on:click="tool = 'or'"> or </v-btn>
-        </v-col>
-        <v-col>
-          <v-btn color="secondary" v-on:click="tool = 'remove'"> remove </v-btn>
-        </v-col>
-        <v-col>
-          <v-btn color="secondary" v-on:click="tool = 'edit'"> edit </v-btn>
-        </v-col>
-      </v-row>
-    </v-container>
+    <v-btn class="ma-4" color="secondary" v-on:click="tool = 'parent'">
+      add IT node
+    </v-btn>
+    <v-btn class="ma-4" color="secondary" v-on:click="tool = 'parent ot'">
+      add OT node
+    </v-btn>
+    <v-btn class="ma-4" color="secondary" v-on:click="tool = 'remove'">
+      remove
+    </v-btn>
+    <v-btn class="ma-4" color="secondary" v-on:click="tool = 'edit'">
+      edit
+    </v-btn>
     <v-switch
       color="secondary"
       v-model="options.nodeLabels"
       :label="`Show node labels: ${options.nodeLabels.toString()}`"
       @change="changeOptions(options)"
     ></v-switch>
-    <v-simple-table v-if="lastSelected">
-      <template v-slot:default>
-        <thead>
-          <tr>
-            <th class="text-left">ID</th>
-            <th class="text-left">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>{{ lastSelected.id }}</td>
-            <td>
-              <v-text-field
-                v-model="lastSelected.action"
-                clearable
-              ></v-text-field>
-            </td>
-          </tr>
-        </tbody>
-      </template>
-    </v-simple-table>
-    <v-spacer />
     <d3-network
       :net-nodes="nodes"
       :net-links="links"
@@ -74,6 +144,9 @@
         </marker>
       </defs>
     </svg>
+    <f:entry>
+      <iframe width="1000" height="600" src="http://localhost:8888"> </iframe>
+    </f:entry>
   </div>
 </template>
 
@@ -88,6 +161,9 @@ export default {
   },
   data() {
     return {
+      //
+      servicesList: ["PING", "SSH"],
+      //
       tool: "edit",
       lastNodeId: 0,
       lastLinkId: 0,
@@ -105,7 +181,7 @@ export default {
       showSelection: true,
       showMenu: true,
       linksSelected: {},
-      // Graph Componnets
+      // Graph Components
       nodes: [],
       links: [],
       options: {
@@ -113,6 +189,22 @@ export default {
         nodeSize: 25,
         nodeLabels: false,
         linkWidth: 2,
+        // Interface Components
+        valid: true,
+        name: "",
+        nameRules: [
+          (v) => !!v || "Name is required",
+          (v) =>
+            (v && v.length <= 10) || "Name must be less than 10 characters",
+        ],
+        email: "",
+        emailRules: [
+          (v) => !!v || "E-mail is required",
+          (v) => /.+@.+\..+/.test(v) || "E-mail must be valid",
+        ],
+        select: null,
+
+        checkbox: false,
       },
     };
   },
@@ -120,9 +212,16 @@ export default {
     this.nodes.push(
       {
         id: 1,
-        name: "security requirements",
+        name: "node 1",
         svgSym: rectSvg,
         action: "None",
+        services: null,
+        firewall: null,
+        value: null,
+        properties: null,
+        owned_string: null,
+        vulnerabilities: [],
+        _color: "#c2edb9",
       }
       // {
       //   id: 2,
@@ -132,6 +231,14 @@ export default {
     for (var requirement of scenario["security_requirement_details"]) {
       this.nodes.push({
         id: requirement.id,
+        name: null,
+        services: null,
+        firewall: null,
+        value: null,
+        properties: null,
+        owned_string: null,
+        vulnerabilities: [],
+        _color: "#c2edb9",
         svgSym: rectSvg,
         action: "None",
       });
@@ -140,6 +247,17 @@ export default {
     }
   },
   methods: {
+    addVulnerability() {
+      this.lastSelected.vulnerabilities.push({
+        vulnerability_description: null,
+        vulnerability_outcome: null,
+        vulnerability_reward_string: null,
+        vulnerability_cost: null,
+      });
+    },
+    removeLastVulnerability() {
+      this.lastSelected.vulnerabilities.pop();
+    },
     linkCb(link) {
       link.name = "Link " + link.id;
       return link;
@@ -202,6 +320,9 @@ export default {
         case "parent":
           this.createParent(node, "normal");
           break;
+        case "parent ot":
+          this.createParent(node, "normal OT");
+          break;
         case "and":
           this.createParent(node, "and");
           break;
@@ -244,6 +365,14 @@ export default {
         case "normal":
           nNode.svgSym = rectSvg;
           nNode.action = "None";
+          nNode._color = "#c2edb9";
+          
+          break;
+        
+        case "normal OT":
+          nNode.svgSym = rectSvg;
+          nNode.action = "None";
+          nNode._color = "#adb3e6";
           break;
         case "and":
           nNode.action = "And";
@@ -258,7 +387,13 @@ export default {
         default:
           nNode.svgSym = rectSvg;
       }
-
+      nNode.name = null
+      nNode.services = null
+      nNode.firewall = null
+      nNode.value = null
+      nNode.properties = null
+      nNode.owned_string = null
+      nNode.vulnerabilities = []
       this.nodes = this.nodes.concat(nNode);
       this.lastNodeId++;
       this.links = this.links.concat(utils.newLink(linkId, node.id, nodeId));
@@ -294,7 +429,7 @@ export default {
       this.options = Object.assign({}, options);
     },
     lcb(link) {
-      link._svgAttrs = { "marker-end": "url(#m-end)" };
+      // link._svgAttrs = { "marker-end": "url(#m-end)" };
       return link;
     },
   },

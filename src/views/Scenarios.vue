@@ -1,160 +1,7 @@
 <template>
   <div class="about">
     <v-container fluid>
-      <!-- Failure Domains -->
-      <v-row>
-        <v-card min-width="100%" class="mb-4 pa-2">
-          <v-card-actions>
-            <v-card-title>Failure Domains</v-card-title>
-            <v-spacer></v-spacer>
-            <v-btn
-              @click.stop="isAddDialogOpen = true"
-              elevation="2"
-              small
-              color="secondary"
-            >
-              Add Scenarios
-              <v-icon right small dark>mdi-plus</v-icon>
-            </v-btn>
-          </v-card-actions>
-          <v-container>
-            <v-row justify="start" align="start">
-              <v-btn
-                class="ma-1"
-                outlined
-                v-for="domain in domains"
-                v-on:click="selected = domain"
-                :key="domain.id"
-                >{{ domain }}</v-btn
-              >
-            </v-row>
-          </v-container>
-        </v-card>
-      </v-row>
-      <!-- Search Bar -->
-      <!-- <v-row>
-          <v-card min-width="100%" class="mb-4 px-2">
-            <v-text-field
-              prepend-icon="mdi-magnify"
-              v-model="search"
-              label="Search By Name"
-              single-line
-            ></v-text-field>
-          </v-card>
-        </v-row> -->
-      <v-row v-if="selected">
-        <v-card min-width="100%" class="mb-4 pa-2">
-          <v-card-title>Select Scenarios</v-card-title>
-          <v-simple-table fixed-header>
-            <template>
-              <thead>
-                <tr>
-                  <th class="text-left">ID</th>
-                  <th class="text-left">Name</th>
-                  <th class="text-left">Source</th>
-                  <th class="text-left">Add</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="item in domainToScenarios[selected]"
-                  :key="item.scenario_id"
-                >
-                  <td>{{ item.scenario_id }}</td>
-                  <td>{{ item.scenario_name }}</td>
-                  <td>{{ item.scenario_source }}</td>
-                  <td>
-                    <v-icon small class="mr-2" @click="addScenario(item)">
-                      mdi-plus
-                    </v-icon>
-                  </td>
-                </tr>
-              </tbody>
-            </template>
-          </v-simple-table>
-        </v-card>
-      </v-row>
-      <!-- Selected Scenarios -->
-      <v-row v-if="selectedScenarios.length">
-        <v-card min-width="100%" class="mb-4 pa-2">
-          <v-card-actions>
-            <v-card-title>Selected Scenarios</v-card-title>
-            <v-spacer></v-spacer>
-            <!-- <v-btn
-              @click.stop="isDetailsDialogOpen = true"
-              small
-              elevation="2"
-              color="secondary"
-            >
-              View Details
-              <v-icon small right dark>mdi-magnify</v-icon>
-            </v-btn> -->
-          </v-card-actions>
-          <v-container>
-            <v-row justify="start" align="start">
-              <v-btn
-                class="ma-1"
-                outlined
-                v-for="scenario in selectedScenarios"
-                v-on:click="selectedDomain = domain"
-                :key="scenario.id"
-                >{{ scenario.scenario_id }}</v-btn
-              >
-            </v-row>
-          </v-container>
-        </v-card>
-      </v-row>
-      <v-row justify="start">
-        <v-col>
-          <!-- Graph Component -->
-          <v-card class="pa-2">
-            <v-card-title> Graph Component </v-card-title>
-            <d3-network
-              :net-nodes="nodes"
-              :net-links="links"
-              :options="options"
-              :link-cb="lcb"
-              @node-click="nodeClicked"
-            ></d3-network>
-          </v-card>
-        </v-col>
-        <v-col>
-          <!-- Node Clicked -->
-          <v-card min-width="100%" class="mb-2">
-            <v-card-title>Selected Node</v-card-title>
-            <v-card-text v-if="selectedNode">
-              {{ selectedScenario + ": " + selectedNode}}
-            </v-card-text>
-          </v-card>
-          <!-- Description -->
-          <v-card min-width="100%" class="mb-2">
-            <v-card-title>Description</v-card-title>
-            <v-card-text >
-              {{ scenarioDetails }}
-            </v-card-text>
-          </v-card>
-          <!-- Vulnerabilities -->
-          <v-card min-width="100%" class="mb-2">
-            <v-card-title>Vulnerabilities</v-card-title>
-            <div v-for="vulnerability in vulnerabilities" :key="vulnerability.id">
-              <v-card-subtitle v-text="vulnerability.vulnerability_id + ': ' + vulnerability.vulnerability_name"/>
-              <v-card-text v-text="vulnerability.common_vulnerability"/>
-              <v-divider/>
-            </div>
-          </v-card>
-          <!-- Mitigations -->
-          <v-card min-width="100%" class="mb-2" v-if="nodeClick">
-            <v-card-title>Mitigations</v-card-title>
-            <div v-for="mitigation in mitigations" :key="mitigation.id">
-              <v-card-subtitle v-text="'Mitigation #' + mitigation.id + ': ' + mitigation.action_common_category"/>
-              <v-card-text v-text="'Action Group: ' + mitigation.action_group"/>
-              <v-card-text v-text="'Action Application Context: ' + mitigation.action_application_context"/>
-              <v-card-text v-text="mitigation.original_mitigation"/>
-              <v-divider/>
-            </div>
-          </v-card>
-        </v-col>
-      </v-row>
+      <Graph/>
     </v-container>
     <v-dialog v-model="isAddDialogOpen">
       <CreateNewScenario />
@@ -179,16 +26,14 @@
 
 <script>
 import axios from "axios";
-import CreateNewScenario from "@/components/CreateNewScenario";
+import Graph from "@/components/Graph";
 import domainToScenariosImport from "../assets/domainToScenarios";
-import D3Network from "vue-d3-network";
 // import scenario from "../assets/scenario_detail";
 import scenarioToNodesImport from "../assets/scenarioToNodes";
 const rectSvg = '<svg version="1.1"><rect width="25" height="15"/></svg>';
 export default {
   components: {
-    CreateNewScenario,
-    D3Network,
+    Graph
   },
   methods: {
     addScenario: function (scenario) {
