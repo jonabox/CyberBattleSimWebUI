@@ -11,30 +11,28 @@
           <v-col>
             <v-text-field
               v-model="lastSelected.name"
-              :counter="10"
+              :counter="30"
               :rules="nameRules"
               label="Name"
               required
             ></v-text-field>
 
-            <v-text-field v-model="value" label="value" required></v-text-field>
+            <v-text-field v-model="lastSelected.value" label="value" required></v-text-field>
 
-            <v-select
+            <v-text-field
               v-model="lastSelected.services"
-              :items="servicesList"
               :rules="[(v) => !!v || 'Item is required']"
               label="services"
               required
-            ></v-select>
+            ></v-text-field>
           </v-col>
           <v-col>
-            <v-select
+            <v-text-field
               v-model="lastSelected.firewall"
-              :items="servicesList"
               :rules="[(v) => !!v || 'Item is required']"
               label="firewall"
               required
-            ></v-select>
+            ></v-text-field>
 
             <v-text-field
               v-model="lastSelected.properties"
@@ -49,44 +47,56 @@
             ></v-text-field>
           </v-col>
         </v-row>
+        <v-btn class="ma-4" @click="changeValue(lastSelected.value)">change value</v-btn>
       </v-container>
-
-      {{ vulnerabilities }}
+      <!-- indices: description, type, outcome, precondition, rates, URL, reward_string -->
       <v-container
-        v-for="vulnerability in lastSelected.vulnerabilities"
+        v-for="(data, vulnerability) in lastSelected.vulnerabilities"
         v-bind:key="vulnerability.id"
       >
         <v-divider />
         <v-row>
           <v-col>
             <v-text-field
-              v-model="vulnerability.vulnerability_name"
-              label="vulnerability name"
+              v-model="data[0]"
+              label="vulnerability description"
               required
             ></v-text-field>
 
             <v-text-field
-              v-model="vulnerability.vulnerability_outcome"
+              v-model="data[1]"
+              label="vulnerability type"
+              required
+            ></v-text-field>
+
+            <v-text-field
+              v-model="data[2]"
               label="vulnerability outcome"
               required
             ></v-text-field>
 
             <v-text-field
-              v-model="vulnerability.vulnerability_description"
-              label="vulnerability description"
+              v-model="data[3]"
+              label="vulnerability precondition"
               required
             ></v-text-field>
           </v-col>
           <v-col>
             <v-text-field
-              v-model="vulnerability.vulnerability_reward_string"
-              label="vulnerability reward string"
+              v-model="data[4]"
+              label="vulnerability rates"
               required
             ></v-text-field>
 
             <v-text-field
-              v-model="vulnerability.vulnerability_cost"
-              label="vulnerability cost"
+              v-model="data[5]"
+              label="vulnerability URL"
+              required
+            ></v-text-field>
+
+            <v-text-field
+              v-model="data[6]"
+              label="vulnerability reward string"
               required
             ></v-text-field>
           </v-col>
@@ -125,7 +135,7 @@
       :net-links="links"
       :selection="{ nodes: selected, links: linksSelected }"
       :options="options"
-      :link-cb="lcb"
+      :link-cb= "lcb"
       @node-click="nodeClick"
       @link-click="linkClick"
     ></d3-network>
@@ -135,7 +145,7 @@
           id="m-end"
           markerWidth="10"
           markerHeight="12"
-          refX="10"
+          refX="15"
           refY="3"
           orient="auto"
           markerUnits="strokeWidth"
@@ -144,16 +154,16 @@
         </marker>
       </defs>
     </svg>
-    <f:entry>
-      <iframe width="1000" height="600" src="http://localhost:8888"> </iframe>
-    </f:entry>
+    server response:
+    {{ serverNodes }}
   </div>
 </template>
 
 <script>
 import * as utils from "./utils.js";
 import D3Network from "vue-d3-network";
-import scenario from "../assets/scenario_detail";
+// import scenario from "../assets/scenario_detail";
+import axios from "axios";
 const rectSvg = '<svg version="1.1"><rect width="25" height="15"/></svg>';
 export default {
   components: {
@@ -162,7 +172,8 @@ export default {
   data() {
     return {
       //
-      servicesList: ["PING", "SSH"],
+      serverNodes: "empty",
+      serverEdges: "empty",
       //
       tool: "edit",
       lastNodeId: 0,
@@ -209,51 +220,93 @@ export default {
     };
   },
   created: function () {
-    this.nodes.push(
-      {
-        id: 1,
-        name: "node 1",
-        svgSym: rectSvg,
-        action: "None",
-        services: null,
-        firewall: null,
-        value: null,
-        properties: null,
-        owned_string: null,
-        vulnerabilities: [],
-        _color: "#c2edb9",
-      }
-      // {
-      //   id: 2,
-      //   name: "vulnerability details"
-      // }
-    );
-    for (var requirement of scenario["security_requirement_details"]) {
-      this.nodes.push({
-        id: requirement.id,
-        name: null,
-        services: null,
-        firewall: null,
-        value: null,
-        properties: null,
-        owned_string: null,
-        vulnerabilities: [],
-        _color: "#c2edb9",
-        svgSym: rectSvg,
-        action: "None",
-      });
-      this.lastNodeId = requirement.id;
-      this.links.push({ sid: requirement.id, tid: 1 });
-    }
+    this.get_yaml();
+    // this.nodes.push(
+    //   {
+    //     id: 1,
+    //     name: "node 1",
+    //     svgSym: rectSvg,
+    //     action: "None",
+    //     services: null,
+    //     firewall: null,
+    //     value: null,
+    //     properties: null,
+    //     owned_string: null,
+    //     vulnerabilities: [],
+    //     _color: "#c2edb9",
+    //   }
+    // );
+    // uncomment for test data
+    // for (var requirement of scenario["security_requirement_details"]) {
+    //   this.nodes.push({
+    //     id: requirement.id,
+    //     name: null,
+    //     services: null,
+    //     firewall: null,
+    //     value: null,
+    //     properties: null,
+    //     owned_string: null,
+    //     vulnerabilities: [],
+    //     _color: "#c2edb9",
+    //     svgSym: rectSvg,
+    //     action: "None",
+    //   });
+    //   this.lastNodeId = requirement.id;
+    //   this.links.push({ sid: requirement.id, tid: 1 });
+    // }
   },
   methods: {
+    get_yaml() {
+      axios
+        .get("http://localhost:5000/api/get_nodes")
+        .then((response) => {
+          console.log("Success!");
+          this.serverNodes = response.data;
+          let nodes = this.serverNodes["data"]
+          for (var node in nodes) {
+            console.log(nodes[node]);
+            this.nodes.push({
+              id: node,
+              name: null,
+              // TODO: add agenet installed
+              services: nodes[node]["services"],
+              firewall: nodes[node]["firewall"],
+              value: nodes[node]["value"],
+              properties: nodes[node]["properties"],
+              owned_string: nodes[node]["owned_string"],
+              vulnerabilities: nodes[node]["vulnerabilities"],
+              _color: "#c2edb9",
+              svgSym: rectSvg,
+              action: "None",
+            });
+            this.lastNodeId = node;
+          }
+          for (var edge of this.serverNodes["edges"]){
+            let start = edge[0];
+            let tail = edge[1];
+            this.links.push({ sid: start, tid: tail });
+          }
+        })
+        .catch((error) => {
+          console.log({ error });
+          alert(error.response.data);
+        });
+    },
+
+    changeValue(newValue) {
+      let data = {newValue: newValue}
+      axios
+        .post("http://localhost:5000/api/change_value", data)
+        .then((response) => {
+          console.log("Success!" + response);
+        })
+        .catch((error) => {
+          console.log({ error });
+          alert(error.response.data);
+        });
+    },
     addVulnerability() {
-      this.lastSelected.vulnerabilities.push({
-        vulnerability_description: null,
-        vulnerability_outcome: null,
-        vulnerability_reward_string: null,
-        vulnerability_cost: null,
-      });
+      this.lastSelected.vulnerabilities.push([0,0,0,0,0]);
     },
     removeLastVulnerability() {
       this.lastSelected.vulnerabilities.pop();
@@ -299,7 +352,11 @@ export default {
     // -- Selection
     selectNode(node) {
       // this.selected[node.id] = node
+      if(this.lastSelected){
+        this.lastSelected._color = "#c2edb9"; // normal color
+      }
       this.lastSelected = node;
+      node._color = "#FFA500";
     },
     selectNodesLinks() {
       for (let link of this.links) {
@@ -337,6 +394,7 @@ export default {
             // is not selected
           } else {
             this.selectNode(node);
+            console.log(this.lastSelected)
           }
           this.selectNodesLinks();
           break;
@@ -366,9 +424,8 @@ export default {
           nNode.svgSym = rectSvg;
           nNode.action = "None";
           nNode._color = "#c2edb9";
-          
           break;
-        
+
         case "normal OT":
           nNode.svgSym = rectSvg;
           nNode.action = "None";
@@ -387,13 +444,13 @@ export default {
         default:
           nNode.svgSym = rectSvg;
       }
-      nNode.name = null
-      nNode.services = null
-      nNode.firewall = null
-      nNode.value = null
-      nNode.properties = null
-      nNode.owned_string = null
-      nNode.vulnerabilities = []
+      nNode.name = null;
+      nNode.services = null;
+      nNode.firewall = null;
+      nNode.value = null;
+      nNode.properties = null;
+      nNode.owned_string = null;
+      nNode.vulnerabilities = [];
       this.nodes = this.nodes.concat(nNode);
       this.lastNodeId++;
       this.links = this.links.concat(utils.newLink(linkId, node.id, nodeId));
@@ -429,7 +486,7 @@ export default {
       this.options = Object.assign({}, options);
     },
     lcb(link) {
-      // link._svgAttrs = { "marker-end": "url(#m-end)" };
+      link._svgAttrs = { "marker-end": "url(#m-end)" };
       return link;
     },
   },
