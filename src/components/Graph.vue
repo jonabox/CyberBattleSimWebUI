@@ -3,27 +3,38 @@
     <v-btn class="ma-2" outlined href="custom.py" download>
       Generate Environment File
     </v-btn>
-    <v-card-title> {{ tool }} mode </v-card-title>
     <!-- new -->
     <v-form v-if="lastSelected" ref="form" v-model="valid" lazy-validation>
       <v-container>
+        <v-card-title>Editing Node: {{ lastSelected.id }}</v-card-title>
+        <!-- {{ this.nodes.map(function(item) {return item.id;})}}
+        {{this.isIdUnique(lastSelected.id)}} -->
         <v-row>
           <v-col>
             <v-text-field
-              v-model="lastSelected.name"
-              :counter="30"
-              :rules="nameRules"
-              label="Name"
+              v-model="lastSelected.id"
+              label="id"
+              :rules="[
+                (v) => !!v || 'Item is required',
+                (v) => isIdUnique(v) || 'node id already in use',
+              ]"
               required
             ></v-text-field>
 
-            <v-text-field v-model="lastSelected.value" label="value" required></v-text-field>
+            <v-text-field
+              v-model="lastSelected.value"
+              label="value"
+              :rules="[
+                (v) => !!v || 'Item is required',
+                (v) => (0 <= v && v <= 100) || 'Value must range from 0 to 100',
+              ]"
+              required
+            ></v-text-field>
 
             <v-text-field
               v-model="lastSelected.services"
               :rules="[(v) => !!v || 'Item is required']"
               label="services"
-              required
             ></v-text-field>
           </v-col>
           <v-col>
@@ -36,6 +47,7 @@
 
             <v-text-field
               v-model="lastSelected.properties"
+              :rules="[(v) => !!v || 'Item is required']"
               label="properties"
               required
             ></v-text-field>
@@ -43,68 +55,80 @@
             <v-text-field
               v-model="lastSelected.owned_string"
               label="owned string"
-              required
             ></v-text-field>
           </v-col>
         </v-row>
-        <v-btn class="ma-4" @click="changeValue(lastSelected.value)">change value</v-btn>
       </v-container>
       <!-- indices: description, type, outcome, precondition, rates, URL, reward_string -->
       <v-container
-        v-for="(data, vulnerability) in lastSelected.vulnerabilities"
-        v-bind:key="vulnerability.id"
+        v-for="(vulnerability, name) in lastSelected.vulnerabilities"
+        v-bind:key="name.id"
       >
         <v-divider />
+        <v-card-title> Vulnerability: {{ name }} </v-card-title>
         <v-row>
           <v-col>
             <v-text-field
-              v-model="data[0]"
+              v-model="vulnerability.description"
+              :rules="[(v) => !!v || 'Item is required']"
               label="vulnerability description"
               required
             ></v-text-field>
 
             <v-text-field
-              v-model="data[1]"
+              v-model="vulnerability.type"
+              :rules="[(v) => !!v || 'Item is required']"
               label="vulnerability type"
               required
             ></v-text-field>
-
-            <v-text-field
-              v-model="data[2]"
-              label="vulnerability outcome"
+            <!-- {{ "selected: " + selectedEdges }} -->
+            <!-- {{getPotentialOutcomes(lastSelected.id)}} -->
+            <v-select
+              v-model="vulnerability.outcome.nodes"
+              :items="getPotentialOutcomes(lastSelected.id)"
+              :rules="[(v) => !!v || 'Item is required']"
+              :menu-props="{ maxHeight: '400' }"
+              @input="(selection) => updateEdges(selection, vulnerability.outcome.nodes_copy)"
+              label="vulnerability outcomes"
+              multiple
+              chips
+              hint="What nodes will be discovered if vulnerability is exploited"
+              persistent-hint
+              dense
               required
-            ></v-text-field>
-
+            ></v-select>
+          </v-col>
+          <!-- <v-col>
+            TODO: ADD SUPPORT FOR ADVANCED VULNERABILITY FEATURES
             <v-text-field
-              v-model="data[3]"
+              v-model="vulnerability[3]"
               label="vulnerability precondition"
               required
             ></v-text-field>
-          </v-col>
-          <v-col>
             <v-text-field
-              v-model="data[4]"
+              v-model="vulnerability[4]"
               label="vulnerability rates"
               required
             ></v-text-field>
 
             <v-text-field
-              v-model="data[5]"
+              v-model="vulnerability[5]"
               label="vulnerability URL"
               required
             ></v-text-field>
 
             <v-text-field
-              v-model="data[6]"
+              v-model="vulnerability[6]"
               label="vulnerability reward string"
               required
-            ></v-text-field>
-          </v-col>
+            ></v-text-field> -->
+          <!-- </v-col> -->
         </v-row>
       </v-container>
-      <v-btn class="ma-4" @click="addVulnerability()">
-        add new vulnerability
-      </v-btn>
+      <v-btn class="ma-4" @click="updateNode()">submit changes</v-btn>
+      <v-btn class="ma-4" @click="addVulnerability()"
+        >add new vulnerability</v-btn
+      >
       <v-btn class="ma-4" @click="removeLastVulnerability()">
         remove last vulnerability
       </v-btn>
@@ -124,6 +148,7 @@
     <v-btn class="ma-4" color="secondary" v-on:click="tool = 'edit'">
       edit
     </v-btn>
+    <v-card-title> {{ tool }} mode </v-card-title>
     <v-switch
       color="secondary"
       v-model="options.nodeLabels"
@@ -135,7 +160,7 @@
       :net-links="links"
       :selection="{ nodes: selected, links: linksSelected }"
       :options="options"
-      :link-cb= "lcb"
+      :link-cb="lcb"
       @node-click="nodeClick"
       @link-click="linkClick"
     ></d3-network>
@@ -171,6 +196,7 @@ export default {
   },
   data() {
     return {
+      selectedEdges: [],
       //
       serverNodes: "empty",
       serverEdges: "empty",
@@ -192,6 +218,18 @@ export default {
       showSelection: true,
       showMenu: true,
       linksSelected: {},
+      // Interface Components
+      valid: true,
+      name: "",
+      nameRules: [
+        (v) => !!v || "Name is required",
+        (v) => (v && v.length <= 10) || "Name must be less than 10 characters",
+      ],
+      email: "",
+      emailRules: [
+        (v) => !!v || "E-mail is required",
+        (v) => /.+@.+\..+/.test(v) || "E-mail must be valid",
+      ],
       // Graph Components
       nodes: [],
       links: [],
@@ -200,91 +238,95 @@ export default {
         nodeSize: 25,
         nodeLabels: false,
         linkWidth: 2,
-        // Interface Components
-        valid: true,
-        name: "",
-        nameRules: [
-          (v) => !!v || "Name is required",
-          (v) =>
-            (v && v.length <= 10) || "Name must be less than 10 characters",
-        ],
-        email: "",
-        emailRules: [
-          (v) => !!v || "E-mail is required",
-          (v) => /.+@.+\..+/.test(v) || "E-mail must be valid",
-        ],
+
         select: null,
 
         checkbox: false,
       },
     };
   },
+  // watch: {
+  //   lastSelected(val, oldval) {
+  //     console.log("new")
+  //     console.log(val);
+  //     console.log("oldval");
+  //     console.log(oldval);
+  //     console.log("done")
+  //     // const diff = [
+  //     //   ...val.filter((x) => !oldVal.includes(x)),
+  //     //   ...oldVal.filter((x) => !val.includes(x)),
+  //     // ];
+
+  //     // this.lastChanged = diff;
+  //   },
+  // },
   created: function () {
-    this.get_yaml();
-    // this.nodes.push(
-    //   {
-    //     id: 1,
-    //     name: "node 1",
-    //     svgSym: rectSvg,
-    //     action: "None",
-    //     services: null,
-    //     firewall: null,
-    //     value: null,
-    //     properties: null,
-    //     owned_string: null,
-    //     vulnerabilities: [],
-    //     _color: "#c2edb9",
-    //   }
-    // );
-    // uncomment for test data
-    // for (var requirement of scenario["security_requirement_details"]) {
-    //   this.nodes.push({
-    //     id: requirement.id,
-    //     name: null,
-    //     services: null,
-    //     firewall: null,
-    //     value: null,
-    //     properties: null,
-    //     owned_string: null,
-    //     vulnerabilities: [],
-    //     _color: "#c2edb9",
-    //     svgSym: rectSvg,
-    //     action: "None",
-    //   });
-    //   this.lastNodeId = requirement.id;
-    //   this.links.push({ sid: requirement.id, tid: 1 });
-    // }
+    this.getNodeData();
   },
   methods: {
-    get_yaml() {
+    updateEdges(selection, reference) {
+      let added = []
+      let removed = []
+      // get added nodes
+      for(let item of selection){
+        if (!reference.includes(item)){
+          added.push(item);
+        }
+      }
+      // get removed nodes
+      for(let item of reference){
+        if (!selection.includes(item)){
+          removed.push(item);
+        }
+      }
+      // checks if added vulnerability nodes
+      // for (var edge of this.serverNodes["edges"]) {
+      //   let start = edge[0];
+      //   let tail = edge[1];
+      //   this.links.push({ sid: start, tid: tail });
+      // }
+    },
+    isIdUnique(id) {
+      // returns whether there is a duplicate id in nodes
+      // indeces are only equal if there is at most one id
+      let ids = this.nodes.map((item) => item.id);
+      return ids.indexOf(id) == ids.lastIndexOf(id);
+    },
+    getPotentialOutcomes(id) {
+      // returns a list of potential outcome ids for a node id
+      return this.nodes.filter((item) => item.id != id).map((item) => item.id);
+    },
+    getNodeData() {
       axios
         .get("http://localhost:5000/api/get_nodes")
         .then((response) => {
           console.log("Success!");
-          this.serverNodes = response.data;
-          let nodes = this.serverNodes["data"]
-          for (var node in nodes) {
-            console.log(nodes[node]);
+          let nodes = response.data;
+          for (var [nodeId, node] of Object.entries(nodes)) {
+            // console.log(nodes[node]);
             this.nodes.push({
-              id: node,
+              id: nodeId,
+              serverId: nodeId,
               name: null,
               // TODO: add agenet installed
-              services: nodes[node]["services"],
-              firewall: nodes[node]["firewall"],
-              value: nodes[node]["value"],
-              properties: nodes[node]["properties"],
-              owned_string: nodes[node]["owned_string"],
-              vulnerabilities: nodes[node]["vulnerabilities"],
+              services: node["services"],
+              firewall: node["firewall"],
+              value: node["value"],
+              properties: node["properties"],
+              owned_string: node["owned_string"],
+              vulnerabilities: node["vulnerabilities"],
               _color: "#c2edb9",
               svgSym: rectSvg,
               action: "None",
             });
+            for (let vulnerability in node.vulnerabilities){
+              for (let neighborId of node.vulnerabilities[vulnerability].outcome.nodes){
+                this.links.push({ sid: nodeId, tid: neighborId });
+              }
+              console.log(vulnerability);
+            }
             this.lastNodeId = node;
-          }
-          for (var edge of this.serverNodes["edges"]){
-            let start = edge[0];
-            let tail = edge[1];
-            this.links.push({ sid: start, tid: tail });
+            // for (let outcome in )
           }
         })
         .catch((error) => {
@@ -293,12 +335,15 @@ export default {
         });
     },
 
-    changeValue(newValue) {
-      let data = {newValue: newValue}
+    updateNode() {
+      let formData = new FormData();
+      let jsonData = JSON.stringify(this.lastSelected);
+      formData.append("updatedNode", jsonData);
       axios
-        .post("http://localhost:5000/api/change_value", data)
+        .post("http://localhost:5000/api/change_value", formData)
         .then((response) => {
           console.log("Success!" + response);
+          this.lastSelected.serverId = this.lastSelected.id;
         })
         .catch((error) => {
           console.log({ error });
@@ -306,7 +351,7 @@ export default {
         });
     },
     addVulnerability() {
-      this.lastSelected.vulnerabilities.push([0,0,0,0,0]);
+      this.lastSelected.vulnerabilities.push([0, 0, 0, 0, 0]);
     },
     removeLastVulnerability() {
       this.lastSelected.vulnerabilities.pop();
@@ -352,7 +397,7 @@ export default {
     // -- Selection
     selectNode(node) {
       // this.selected[node.id] = node
-      if(this.lastSelected){
+      if (this.lastSelected) {
         this.lastSelected._color = "#c2edb9"; // normal color
       }
       this.lastSelected = node;
@@ -394,7 +439,7 @@ export default {
             // is not selected
           } else {
             this.selectNode(node);
-            console.log(this.lastSelected)
+            console.log(this.lastSelected);
           }
           this.selectNodesLinks();
           break;
