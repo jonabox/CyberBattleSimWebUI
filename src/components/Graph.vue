@@ -1,8 +1,8 @@
 <template>
   <div>
-    <v-btn class="ma-2" outlined href="custom.py" download>
+    <!-- <v-btn class="ma-2" outlined href="custom.py" download>
       Generate Environment File
-    </v-btn>
+    </v-btn> -->
     <!-- new -->
     <v-form v-if="lastSelected" ref="form" v-model="valid" lazy-validation>
       <v-container>
@@ -81,17 +81,19 @@
               label="vulnerability type"
               required
             ></v-text-field>
-            <!-- {{ "selected: " + selectedEdges }} -->
-            <!-- {{getPotentialOutcomes(lastSelected.id)}} -->
             <v-select
               v-model="vulnerability.outcome.nodes"
               :items="getPotentialOutcomes(lastSelected.id)"
               :rules="[(v) => !!v || 'Item is required']"
               :menu-props="{ maxHeight: '400' }"
-              @input="(selection) => updateEdges(selection, vulnerability.outcome.nodes_copy)"
+              @input="
+                (selection) =>
+                  updateEdges2(selection, vulnerability.outcome.nodes_copy)
+              "
               label="vulnerability outcomes"
               multiple
-              chips
+              small-chips
+              deletable-chips
               hint="What nodes will be discovered if vulnerability is exploited"
               persistent-hint
               dense
@@ -179,8 +181,6 @@
         </marker>
       </defs>
     </svg>
-    server response:
-    {{ serverNodes }}
   </div>
 </template>
 
@@ -196,7 +196,6 @@ export default {
   },
   data() {
     return {
-      selectedEdges: [],
       //
       serverNodes: "empty",
       serverEdges: "empty",
@@ -265,26 +264,92 @@ export default {
   },
   methods: {
     updateEdges(selection, reference) {
-      let added = []
-      let removed = []
-      // get added nodes
-      for(let item of selection){
-        if (!reference.includes(item)){
-          added.push(item);
+      let outcomesToAdd = this.lastSelected.outcomesToAdd;
+      let outcomesToRemove = this.lastSelected.outcomesToRemove;
+      // process added nodes
+      for (let neighborId of selection) {
+        // check that neighbor is not already in graph or already to be added
+        if (
+          !reference.includes(neighborId) &&
+          !outcomesToAdd.includes(neighborId)
+        ) {
+          // create and add the new edge
+          let newEdge = {
+            sid: this.lastSelected.id,
+            tid: neighborId,
+            _color: "#FFA500",
+          };
+          this.links.push(newEdge);
+          outcomesToAdd.push(neighborId);
+        }
+        // check if neighbor was to be removed
+        let outcomeIndex = outcomesToRemove.indexOf(neighborId);
+        if (outcomeIndex > -1) {
+          let edgeToRemove = this.links.find(
+            (edge) => edge.sid == this.lastSelected.id && edge.tid == neighborId
+          );
+          // set color back to default
+          this.$set(edgeToRemove, "_color", "#888C8B");
+          // save outcome from removal
+          outcomesToRemove.splice(outcomeIndex, 1);
         }
       }
-      // get removed nodes
-      for(let item of reference){
-        if (!selection.includes(item)){
-          removed.push(item);
+      // process removed nodes from reference
+      for (let neighborId of [...reference, ...outcomesToAdd]) {
+        // check that neighbor is missing from selection or already to be deleted
+        if (
+          !selection.includes(neighborId) &&
+          !outcomesToRemove.includes(neighborId)
+        ) {
+          let edgeToRemove = this.links.find(
+            (edge) => edge.sid == this.lastSelected.id && edge.tid == neighborId
+          );
+          this.$set(edgeToRemove, "_color", "#A71E36");
+          // check if neighbor was to be added
+          let outcomeIndex = outcomesToAdd.indexOf(neighborId);
+          if (outcomeIndex > -1) {
+            let edgeToAdd = this.links.find(
+              (edge) =>
+                edge.sid == this.lastSelected.id && edge.tid == neighborId
+            );
+            // save outcome from being added
+            outcomesToAdd.splice(outcomeIndex, 1);
+            this.removeLink(edgeToAdd);
+          } else {
+            outcomesToRemove.push(neighborId);
+          }
         }
       }
-      // checks if added vulnerability nodes
-      // for (var edge of this.serverNodes["edges"]) {
-      //   let start = edge[0];
-      //   let tail = edge[1];
-      //   this.links.push({ sid: start, tid: tail });
-      // }
+    },
+    updateEdges2(selection, reference) {
+      let toAdd = selection.filter((x) => !reference.includes(x));
+      let toRemove = reference.filter((x) => !selection.includes(x));
+      for (let nodeId of toAdd) {
+        // check if edge is not already added
+        let edgeToAdd = this.links.find(
+          (edge) => edge.sid == this.lastSelected.id && edge.tid == nodeId
+        );
+        // if not, create new edge and add it to graph
+        if (!edgeToAdd) {
+          edgeToAdd = {
+            sid: this.lastSelected.id,
+            tid: nodeId,
+          };
+          this.links.push(edgeToAdd);
+        }
+        this.$set(edgeToAdd, "_color", "#FFA500");
+        reference.push(nodeId);
+      }
+      for (let nodeId of toRemove) {
+        // check if edge exists
+        let edgeToRemove = this.links.find(
+          (edge) => edge.sid == this.lastSelected.id && edge.tid == nodeId
+        );
+        if (edgeToRemove) {
+          this.$set(edgeToRemove, "_color", "#A71E36");
+          reference.splice(reference.indexOf(nodeId), 1);
+        }
+      }
     },
     isIdUnique(id) {
       // returns whether there is a duplicate id in nodes
@@ -302,7 +367,7 @@ export default {
         .then((response) => {
           console.log("Success!");
           let nodes = response.data;
-          for (var [nodeId, node] of Object.entries(nodes)) {
+          for (let [nodeId, node] of Object.entries(nodes)) {
             // console.log(nodes[node]);
             this.nodes.push({
               id: nodeId,
@@ -318,9 +383,13 @@ export default {
               _color: "#c2edb9",
               svgSym: rectSvg,
               action: "None",
+              // outcome (edge) modification
+              outcomesToAdd: [],
+              outcomesToRemove: [],
             });
-            for (let vulnerability in node.vulnerabilities){
-              for (let neighborId of node.vulnerabilities[vulnerability].outcome.nodes){
+            for (let vulnerability in node.vulnerabilities) {
+              for (let neighborId of node.vulnerabilities[vulnerability].outcome
+                .nodes) {
                 this.links.push({ sid: nodeId, tid: neighborId });
               }
               console.log(vulnerability);
