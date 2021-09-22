@@ -4,6 +4,7 @@
     dark
     permanent
     clipped
+    expand-on-hover
     :mini-variant="isScreenSmall"
     app
   >

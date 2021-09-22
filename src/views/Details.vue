@@ -156,7 +156,7 @@
 <script>
 import D3Network from "vue-d3-network";
 // import scenario from "../assets/scenario_detail";
-import scenarioToNodesImport from "../assets/scenarioToNodes";
+// import scenarioToNodesImport from "../assets/scenarioToNodes";
 export default {
   components: {
     D3Network,
@@ -165,7 +165,7 @@ export default {
     return {
       // Graph Components
       nodeClick: false,
-      scenarioToNodes: scenarioToNodesImport,
+      // scenarioToNodes: scenarioToNodesImport,
       nodes: [],
       links: [],
       options: {
@@ -201,17 +201,17 @@ export default {
     };
   },
   mounted: function () {
-    for (let requirement of this.scenarioToNodes["AMI1"]) {
-      this.nodes.push({
-        id: requirement.attack_item_source,
-      });
-    }
-    for (let requirement of this.scenarioToNodes["AMI1"]) {
-      this.links.push({
-        sid: requirement.attack_item_target,
-        tid: requirement.attack_item_source,
-      });
-    }
+    // for (let requirement of this.scenarioToNodes["AMI1"]) {
+    //   this.nodes.push({
+    //     id: requirement.attack_item_source,
+    //   });
+    // }
+    // for (let requirement of this.scenarioToNodes["AMI1"]) {
+    //   this.links.push({
+    //     sid: requirement.attack_item_target,
+    //     tid: requirement.attack_item_source,
+    //   });
+    // }
   },
 };
 </script>

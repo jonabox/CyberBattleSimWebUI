@@ -1,27 +1,5 @@
 <template>
-  <div class="about">
-    <v-container fluid>
-      <Graph/>
-    </v-container>
-    <v-dialog v-model="isAddDialogOpen">
-      <CreateNewScenario />
-    </v-dialog>
-    <svg>
-      <defs>
-        <marker
-          id="m-end"
-          markerWidth="6"
-          markerHeight="6"
-          refX="12"
-          refY="3"
-          orient="auto"
-          markerUnits="strokeWidth"
-        >
-          <path d="M0,0 L0,6 L6,3 z"></path>
-        </marker>
-      </defs>
-    </svg>
-  </div>
+  <Graph/>
 </template>
 
 <script>
