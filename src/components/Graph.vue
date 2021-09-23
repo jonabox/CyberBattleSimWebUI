@@ -38,17 +38,17 @@
             lazy-validation
           >
             <v-container>
-              <v-card-title>Editing Node: {{ lastSelected.id }}</v-card-title>
+              <v-card-title>Editing Node: {{ lastSelected.name }}</v-card-title>
               <!-- {{ this.nodes.map(function(item) {return item.id;})}}
-        {{this.isIdUnique(lastSelected.id)}} -->
+        {{this.isINodeIdUnique(lastSelected.name)}} -->
               <v-row>
                 <v-col>
                   <v-text-field
-                    v-model="lastSelected.id"
+                    v-model="lastSelected.name"
                     label="id"
                     :rules="[
                       (v) => !!v || 'Item is required',
-                      (v) => isIdUnique(v) || 'node id already in use',
+                      (v) => isINodeIdUnique(v) || 'node id already in use',
                     ]"
                     required
                   ></v-text-field>
@@ -95,13 +95,22 @@
             </v-container>
             <!-- indices: description, type, outcome, precondition, rates, URL, reward_string -->
             <v-container
-              v-for="(vulnerability, name) in lastSelected.vulnerabilities"
-              v-bind:key="name.id"
+              v-for="(vulnerability, serverId) in lastSelected.vulnerabilities"
+              v-bind:key="serverId"
             >
               <v-divider />
-              <v-card-title> Vulnerability: {{ name }} </v-card-title>
+              <v-card-title> Vulnerability: {{ vulnerability.id }} </v-card-title>
               <v-row>
                 <v-col>
+                  <v-text-field
+                    v-model="vulnerability.id"
+                    label="id"
+                    :rules="[
+                      (v) => !!v || 'Item is required',
+                      (v) => isVulnerabilityIdUnique(v) || 'vulnerability id already in use',
+                    ]"
+                    required
+                  ></v-text-field>
                   <v-text-field
                     v-model="vulnerability.description"
                     :rules="[(v) => !!v || 'Item is required']"
@@ -118,7 +127,7 @@
                   ></v-select>
                   <v-select
                     v-model="vulnerability.outcome.nodes"
-                    :items="getPotentialOutcomes(lastSelected.id)"
+                    :items="getPotentialOutcomes(lastSelected.name)"
                     :rules="[(v) => !!v || 'Item is required']"
                     :menu-props="{ maxHeight: '400' }"
                     @input="
@@ -225,7 +234,6 @@ export default {
       linksSelected: {},
       // Interface Components
       valid: true,
-      name: "",
       nameRules: [
         (v) => !!v || "Name is required",
         (v) => (v && v.length <= 10) || "Name must be less than 10 characters",
@@ -260,12 +268,12 @@ export default {
       for (let nodeId of toAdd) {
         // check if edge is not already added
         let edgeToAdd = this.links.find(
-          (edge) => edge.sid == this.lastSelected.id && edge.tid == nodeId
+          (edge) => edge.sid == this.lastSelected.name && edge.tid == nodeId
         );
         // if not, create new edge and add it to graph
         if (!edgeToAdd) {
           edgeToAdd = {
-            sid: this.lastSelected.id,
+            sid: this.lastSelected.name,
             tid: nodeId,
           };
           this.links.push(edgeToAdd);
@@ -276,7 +284,7 @@ export default {
       for (let nodeId of toRemove) {
         // check if edge exists
         let edgeToRemove = this.links.find(
-          (edge) => edge.sid == this.lastSelected.id && edge.tid == nodeId
+          (edge) => edge.sid == this.lastSelected.name && edge.tid == nodeId
         );
         if (edgeToRemove) {
           this.$set(edgeToRemove, "_color", "#A71E36");
@@ -284,10 +292,16 @@ export default {
         }
       }
     },
-    isIdUnique(id) {
+    isINodeIdUnique(id) {
       // returns whether there is a duplicate id in nodes
       // indeces are only equal if there is at most one id
       let ids = this.nodes.map((item) => item.id);
+      return ids.indexOf(id) == ids.lastIndexOf(id);
+    },
+    isVulnerabilityIdUnique(id) {
+      // returns whether there is a duplicate id in nodes
+      // indeces are only equal if there is at most one id
+      let ids = this.lastSelected.map((item) => item.id);
       return ids.indexOf(id) == ids.lastIndexOf(id);
     },
     getPotentialOutcomes(id) {
@@ -303,9 +317,8 @@ export default {
           for (let [nodeId, node] of Object.entries(nodes)) {
             // console.log(nodes[node]);
             this.nodes.push({
-              id: nodeId,
+              name: nodeId,
               serverId: nodeId,
-              name: null,
               // TODO: add agenet installed
               services: node["services"],
               firewall: node["firewall"],
@@ -320,15 +333,16 @@ export default {
               outcomesToAdd: [],
               outcomesToRemove: [],
             });
-            for (let vulnerability in node.vulnerabilities) {
-              for (let neighborId of node.vulnerabilities[vulnerability].outcome
-                .nodes) {
+
+            for (let [vulnerabilityId, vulnerability] of Object.entries(
+              node.vulnerabilities
+            )) {
+              for (let neighborId of vulnerability.outcome.nodes) {
                 this.links.push({ sid: nodeId, tid: neighborId });
               }
-              console.log(vulnerability);
+              this.$set(vulnerability, "id", vulnerabilityId);
             }
             this.lastNodeId = node;
-            // for (let outcome in )
           }
         })
         .catch((error) => {
@@ -354,11 +368,11 @@ export default {
     },
 
     finalizeNodeUpdate(serverResponse) {
-      this.lastSelected.serverId = this.lastSelected.id;
+      this.lastSelected.serverId = this.lastSelected.name; //re-cache server id
       // update removed and added nodes to default color
       for (let addedNodeId of serverResponse.data.nodesAdded) {
         let edgeToAdd = this.links.find(
-          (edge) => edge.sid == this.lastSelected.id && edge.tid == addedNodeId
+          (edge) => edge.sid == this.lastSelected.name && edge.tid == addedNodeId
         );
         this.$set(edgeToAdd, "_color", "#888C8b");
       }
@@ -366,7 +380,7 @@ export default {
       let nodesRemoved = serverResponse.data.nodesRemoved;
       this.links = this.links.filter(
         (link) =>
-          link.sid != this.lastSelected.id || !nodesRemoved.includes(link.tid)
+          link.sid != this.lastSelected.name || !nodesRemoved.includes(link.tid)
       );
     },
     addVulnerability() {
