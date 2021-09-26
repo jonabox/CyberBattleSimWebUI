@@ -11,6 +11,7 @@
     "axios": "^0.21.0",
     "d3": "^5.16.0",
     "js-yaml": "^4.1.0",
+    "uuid": "^8.3.2",
     "vue": "^2.6.11",
     "vue-d3-charts": "^0.2.8",
     "vue-d3-network": "emiliorizzo/vue-d3-network#49/head",

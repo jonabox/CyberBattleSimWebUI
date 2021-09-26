@@ -55,3 +55,8 @@ canvas {
     transform: translateY(-.5em);
     text-anchor: middle
 }
+
+#m-end path,
+#m-start {
+  fill: #888c8b;
+}

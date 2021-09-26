@@ -11,7 +11,7 @@
                   <v-row>
                     <v-card min-width="100%" height="500px" class="ma-2">
                       <v-card-title>Graph Component</v-card-title>
-                      <Graph/>
+                      
                     </v-card>
                     <v-card min-width="100%" min-height="50%" class="ma-2">
                       <v-card-title>Battle Record</v-card-title>
@@ -97,10 +97,8 @@
 </template>
 
 <script>
-import Graph from "../components/Graph";
 export default {
   components: {
-    Graph,
   },
   data() {
     return {

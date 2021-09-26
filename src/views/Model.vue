@@ -43,6 +43,7 @@
         {{this.isINodeIdUnique(lastSelected.name)}} -->
               <v-row>
                 <v-col>
+                  {{ hasFormUpdates }}
                   <v-text-field
                     v-model="lastSelected.name"
                     label="id"
@@ -50,6 +51,8 @@
                       (v) => !!v || 'Item is required',
                       (v) => isINodeIdUnique(v) || 'node id already in use',
                     ]"
+                    @input="(newNodeName) => handleNewNodeName(newNodeName)"
+                    @change="hasFormUpdates = true"
                     required
                   ></v-text-field>
 
@@ -99,7 +102,9 @@
               v-bind:key="serverId"
             >
               <v-divider />
-              <v-card-title> Vulnerability: {{ vulnerability.id }} </v-card-title>
+              <v-card-title>
+                Vulnerability: {{ vulnerability.id }}
+              </v-card-title>
               <v-row>
                 <v-col>
                   <v-text-field
@@ -107,7 +112,9 @@
                     label="id"
                     :rules="[
                       (v) => !!v || 'Item is required',
-                      (v) => isVulnerabilityIdUnique(v) || 'vulnerability id already in use',
+                      (v) =>
+                        isVulnerabilityIdUnique(v) ||
+                        'vulnerability id already in use',
                     ]"
                     required
                   ></v-text-field>
@@ -201,8 +208,10 @@
 </template>
 
 <script>
-import * as utils from "./utils.js";
+import * as utils from "../components/utils.js";
 import D3Network from "vue-d3-network";
+import { v4 as uuidv4 } from 'uuid';
+uuidv4(); // ⇨ '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d'
 // import scenario from "../assets/scenario_detail";
 import axios from "axios";
 const rectSvg = '<svg version="1.1"><rect width="25" height="15"/></svg>';
@@ -233,6 +242,7 @@ export default {
       showMenu: true,
       linksSelected: {},
       // Interface Components
+      hasFormUpdates: false,
       valid: true,
       nameRules: [
         (v) => !!v || "Name is required",
@@ -259,7 +269,7 @@ export default {
     };
   },
   created: function () {
-    this.getNodeData();
+    this.getGraphData();
   },
   methods: {
     updateEdges(selection, reference) {
@@ -292,6 +302,21 @@ export default {
         }
       }
     },
+    handleNewNodeName(newName) {
+      for (let node of this.nodes) {
+        for (let vulnerability of Object.values(node.vulnerabilities)) {
+          let oldName = this.lastSelected.tempName;
+          let outcomeIndex = vulnerability.outcome.nodes.indexOf(oldName);
+          if (outcomeIndex != -1) {
+            vulnerability.outcome.nodes.splice(outcomeIndex, 1, newName);
+            //outcome index should be the same for reference
+            vulnerability.outcome.nodes_copy.splice(outcomeIndex, 1, newName);
+            console.log(vulnerability.outcome.nodes);
+          }
+        }
+      }
+      this.lastSelected.tempName = newName;
+    },
     isINodeIdUnique(id) {
       // returns whether there is a duplicate id in nodes
       // indeces are only equal if there is at most one id
@@ -299,16 +324,18 @@ export default {
       return ids.indexOf(id) == ids.lastIndexOf(id);
     },
     isVulnerabilityIdUnique(id) {
-      // returns whether there is a duplicate id in nodes
+      // returns whether there is a duplicate id in vulnerabilities
       // indeces are only equal if there is at most one id
-      let ids = this.lastSelected.map((item) => item.id);
+      let ids = Object.keys(this.lastSelected.vulnerabilities);
       return ids.indexOf(id) == ids.lastIndexOf(id);
     },
     getPotentialOutcomes(id) {
       // returns a list of potential outcome ids for a node id
-      return this.nodes.filter((item) => item.id != id).map((item) => item.id);
+      return this.nodes
+        .filter((item) => item.name != id)
+        .map((item) => item.name);
     },
-    getNodeData() {
+    getGraphData() {
       axios
         .get("http://localhost:5000/api/get_nodes")
         .then((response) => {
@@ -316,9 +343,12 @@ export default {
           let nodes = response.data;
           for (let [nodeId, node] of Object.entries(nodes)) {
             // console.log(nodes[node]);
+            console.log(typeof nodeId);
             this.nodes.push({
-              name: nodeId,
-              serverId: nodeId,
+              id: nodeId,
+              name: nodeId, // front-facing value
+              tempName: nodeId, // temporary value to handle name changes
+              serverId: nodeId, // server reference
               // TODO: add agenet installed
               services: node["services"],
               firewall: node["firewall"],
@@ -341,9 +371,16 @@ export default {
                 this.links.push({ sid: nodeId, tid: neighborId });
               }
               this.$set(vulnerability, "id", vulnerabilityId);
+              this.$set(vulnerability, "serverId", vulnerabilityId);
+              this.$set(
+                vulnerability.outcome,
+                "nodes_copy",
+                vulnerability.outcome.nodes.concat()
+              );
             }
             this.lastNodeId = node;
           }
+          console.log(this.nodes);
         })
         .catch((error) => {
           console.log({ error });
@@ -359,6 +396,7 @@ export default {
         .post("http://localhost:5000/api/change_value", formData)
         .then((response) => {
           console.log(response);
+          this.hasFormUpdates = false;
           this.finalizeNodeUpdate(response);
         })
         .catch((error) => {
@@ -368,11 +406,19 @@ export default {
     },
 
     finalizeNodeUpdate(serverResponse) {
-      this.lastSelected.serverId = this.lastSelected.name; //re-cache server id
+      //re-cache server IDs
+      this.lastSelected.serverId = this.lastSelected.name;
+      for (let vulnerability of Object.values(
+        this.lastSelected.vulnerabilities
+      )) {
+        vulnerability.serverId = vulnerability.id;
+      }
+
       // update removed and added nodes to default color
       for (let addedNodeId of serverResponse.data.nodesAdded) {
         let edgeToAdd = this.links.find(
-          (edge) => edge.sid == this.lastSelected.name && edge.tid == addedNodeId
+          (edge) =>
+            edge.sid == this.lastSelected.name && edge.tid == addedNodeId
         );
         this.$set(edgeToAdd, "_color", "#888C8b");
       }
@@ -384,7 +430,25 @@ export default {
       );
     },
     addVulnerability() {
-      this.lastSelected.vulnerabilities.push([0, 0, 0, 0, 0]);
+      let uuid = uuidv4();
+      console.log(uuid)
+      let newVulnerability = {
+        id: uuid,
+        serverId: uuid,
+        description: null,
+        type: null,
+        outcome: {
+          nodes: [],
+          nodes_copy: [],
+        },
+        precondition: "true",
+        rates: [0, 0, 0],
+        URL: "",
+        cost: 0,
+        reward_string: "",
+      };
+      this.$set(this.lastSelected.vulnerabilities, uuid, newVulnerability);
+      // this.lastSelected.vulnerabilities.push(newVulnerability);
     },
     removeLastVulnerability() {
       this.lastSelected.vulnerabilities.pop();
@@ -468,7 +532,11 @@ export default {
             this.unSelectNode(node.id);
             // is not selected
           } else {
-            this.selectNode(node);
+            if (this.hasFormUpdates) {
+              alert("Please submit changes before reselecting.");
+            } else {
+              this.selectNode(node);
+            }
           }
           this.selectNodesLinks();
           break;
@@ -560,9 +628,4 @@ export default {
   },
 };
 </script>
-<style src="@/assets/vue-d3-network.css">
-#m-end path,
-#m-start {
-  fill: #888c8b;
-}
-</style>
+<style src="@/assets/vue-d3-network.css"/>

@@ -2,7 +2,6 @@
   <v-navigation-drawer
     class="primary"
     dark
-    permanent
     clipped
     expand-on-hover
     :mini-variant="isScreenSmall"
@@ -48,10 +47,10 @@ export default {
     return {
       items: [
         { title: "Account", icon: "mdi-account" },
-        { title: "Scenarios", icon: "mdi-graph" },
+        { title: "Model", icon: "mdi-graph" },
+        { title: "Simulate", icon: "mdi-sword-cross" },
         // { title: "Graph", icon: "mdi-graph" },
         // { title: "Details", icon: "mdi-flash-circle" },
-        // { title: "Simulate", icon: "mdi-sword-cross" },
         // { title: "Statistics", icon: "mdi-chart-bar" },
       ],
     };
