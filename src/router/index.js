@@ -4,6 +4,7 @@ import Home from '../views/Home.vue'
 import Model from '../views/Model.vue'
 import Details from '../views/Details.vue'
 import Simulate from '../views/Simulate.vue'
+import Agent from '../views/Agent.vue'
 import Statistics from '../views/Statistics.vue'
 
 Vue.use(VueRouter)
@@ -28,6 +29,11 @@ Vue.use(VueRouter)
     path: '/Simulate',
     name: 'Simulate',
     component: Simulate,
+  },
+  {
+    path: '/Agent',
+    name: 'Agent',
+    component: Agent,
   },
   {
     path: '/Statistics',

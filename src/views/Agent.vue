@@ -1,93 +1,33 @@
 <template>
   <div>
     <v-container>
-      <v-card class="ma-4 pa-4">
-        <v-switch
-          color="secondary"
-          v-model="options.nodeLabels"
-          :label="`Show node labels: ${options.nodeLabels.toString()}`"
-          @change="changeOptions(options)"
-          class="ma-4"
-        ></v-switch>
-        <d3-network
-          :net-nodes="nodes"
-          :net-links="links"
-          :selection="{ nodes: selected, links: linksSelected }"
-          :options="options"
-          :link-cb="lcb"
-          @node-click="nodeClick"
-          @link-click="linkClick"
-        ></d3-network>
-      </v-card>
-      <v-card class="ma-4">
-        <v-btn class="ma-4" @click="getDiscoveredNames()"
-          >Get Discovered Nodes</v-btn
-        >
-        <v-btn class="ma-4" @click="listAllAttacks()">List All Attacks</v-btn>
-      </v-card>
-      <v-card
-        v-for="(vulnerability, vulnerabilityIndex) in vulnerabilities"
-        v-bind:key="vulnerabilityIndex"
-        class="ma-4 pa-4"
-      >
-        <v-card-title>
-          {{ "Node " + vulnerability.id + " vulnerabilities" }}
-        </v-card-title>
-        <v-card-subtitle>
-          {{ "Node status: " + vulnerability.status }}
-        </v-card-subtitle>
-        <v-chip
-          v-for="(property, propertyIndex) in vulnerability.properties"
-          v-bind:key="propertyIndex"
-          v-text="property"
-        />
-        <v-divider class="ma-4 pa-4"></v-divider>
+      <v-form ref="form" v-model="valid" lazy-validation>
         <v-container>
           <v-row>
             <v-col>
-              <v-list>
-                Local Attacks:
-                <v-list-item
-                  v-for="(attack, attackIndex) in vulnerability.local_attacks"
-                  :key="attackIndex"
-                >
-                  <v-list-item-content>
-                    <v-list-item-title v-text="attack" />
-                  </v-list-item-content>
-                  <v-list-item-action>
-                    <v-btn
-                      color="green lighten-2"
-                      @click="runExploit(vulnerability.id, attack)"
-                    >
-                      Exploit
-                      <v-icon right dark> mdi-skull-crossbones </v-icon>
-                    </v-btn>
-                  </v-list-item-action>
-                </v-list-item>
-              </v-list>
+              <v-text-field
+                v-for="(item, itemId) in column1"
+                v-bind:key="itemId"
+                :value="item"
+                :label="itemId"
+                required
+              ></v-text-field>
             </v-col>
-            <v-divider vertical></v-divider>
             <v-col>
-              <v-list>
-                Remote Attacks:
-                <v-list-item
-                  v-for="(attack, attackIndex) in vulnerability.remote_attacks"
-                  :key="attackIndex"
-                >
-                  <v-list-item-content>
-                    <v-list-item-title v-text="attack" />
-                  </v-list-item-content>
-                  <v-list-item-action>
-                    <v-btn color="green lighten-2" @click="reserve">
-                      Exploit
-                    </v-btn>
-                  </v-list-item-action>
-                </v-list-item>
-              </v-list>
+              <v-text-field
+                v-for="(item, itemId) in column2"
+                v-bind:key="itemId"
+                :value="item"
+                :label="itemId"
+                required
+              ></v-text-field>
             </v-col>
           </v-row>
         </v-container>
-      </v-card>
+        <v-btn class="ma-4" @click="runBenchmarks()"
+          >run benchmarks</v-btn
+        >
+      </v-form>
     </v-container>
     <svg>
       <defs>
@@ -109,16 +49,37 @@
 
 <script>
 import * as utils from "../components/utils.js";
-import D3Network from "vue-d3-network";
+// import D3Network from "vue-d3-network";
 import axios from "axios";
 const rectSvg = '<svg version="1.1"><rect width="25" height="15"/></svg>';
 export default {
-  components: {
-    D3Network,
-  },
+  components: {},
   data() {
     return {
-      vulnerabilities: {},
+      column1: {
+        env_size: 10,
+        iteration_count: 1500,
+        training_episode_count: 20,
+        eval_episode_count: 10,
+        maximum_node_count: 12,
+        maximum_total_credentials: 10,
+      },
+      column2: {
+        learner: [
+          "random_run",
+          "credlookup_run",
+          "tabularq_run",
+          "tabularq_exploit_run",
+          "dql_run",
+          "dql_exploit_run",
+        ],
+        episode_count: 10,
+        iteration_count: 100,
+        epsilon: 0.9,
+        render: false,
+        epsilon_exponential_decay: 10000,
+        epsilon_minimum: 0.1,
+      },
       //
       nodeStore: {},
       linkStore: {},
@@ -148,7 +109,7 @@ export default {
       options: {
         force: 1000,
         nodeSize: 25,
-        nodeLabels: true,
+        nodeLabels: false,
         linkWidth: 2,
         resizeListener: false,
         select: null,
@@ -191,23 +152,11 @@ export default {
         }
       }
     },
-    getDiscoveredNames() {
+    runBenchmarks() {
       axios
-        .get("http://localhost:5000/api/list_discovered_nodes")
+        .get("http://localhost:5000/api/run_benchmarks")
         .then((response) => {
           console.log(response.data);
-          this.nodes.splice(0); // clears content of array; splicing for reactivity
-          for (let discoveredNode of response.data) {
-            let nodeToUpdate = this.nodeStore[discoveredNode.id];
-            if (nodeToUpdate) {
-              this.$set(nodeToUpdate, status, discoveredNode.status);
-              if (discoveredNode.status == "discovered"){
-                this.$set(nodeToUpdate, "_color", "#888C8B");
-              }
-              this.nodes.push(nodeToUpdate);
-              console.log(this.nodes);
-            }
-          }
         })
         .catch((error) => {
           console.log({ error });
@@ -228,7 +177,7 @@ export default {
             if (nodeToUpdate) {
               this.$set(nodeToUpdate, status, discoveredNode.status);
               console.log(nodeToUpdate.status);
-              if (discoveredNode.status == "discovered"){
+              if (discoveredNode.status == "discovered") {
                 this.$set(nodeToUpdate, "_color", "#888C8B");
               }
               this.nodes.push(nodeToUpdate);
@@ -254,7 +203,7 @@ export default {
             let nodeToUpdate = this.nodeStore[discoveredNode];
             if (nodeToUpdate) {
               this.$set(nodeToUpdate, status, discoveredNode.status);
-              if (discoveredNode.status == "discovered"){
+              if (discoveredNode.status == "discovered") {
                 this.$set(nodeToUpdate, "_color", "#888C8B");
               }
               this.nodes.push(nodeToUpdate);
@@ -319,7 +268,7 @@ export default {
             }
             this.lastNodeId = node;
           }
-          // this.listAllAttacks();
+          this.listAllAttacks();
         })
         .catch((error) => {
           console.log({ error });

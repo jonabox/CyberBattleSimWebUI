@@ -49,6 +49,7 @@ export default {
         { title: "Account", icon: "mdi-account" },
         { title: "Model", icon: "mdi-graph" },
         { title: "Simulate", icon: "mdi-sword-cross" },
+        { title: "Agent", icon: "mdi-brain" },
         // { title: "Graph", icon: "mdi-graph" },
         // { title: "Details", icon: "mdi-flash-circle" },
         // { title: "Statistics", icon: "mdi-chart-bar" },

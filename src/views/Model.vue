@@ -211,8 +211,6 @@
 import * as utils from "../components/utils.js";
 import D3Network from "vue-d3-network";
 import { v4 as uuidv4 } from 'uuid';
-uuidv4(); // ⇨ '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d'
-// import scenario from "../assets/scenario_detail";
 import axios from "axios";
 const rectSvg = '<svg version="1.1"><rect width="25" height="15"/></svg>';
 export default {
@@ -343,7 +341,6 @@ export default {
           let nodes = response.data;
           for (let [nodeId, node] of Object.entries(nodes)) {
             // console.log(nodes[node]);
-            console.log(typeof nodeId);
             this.nodes.push({
               id: nodeId,
               name: nodeId, // front-facing value
@@ -420,7 +417,7 @@ export default {
           (edge) =>
             edge.sid == this.lastSelected.name && edge.tid == addedNodeId
         );
-        this.$set(edgeToAdd, "_color", "#888C8b");
+        this.$set(edgeToAdd, "_color", "#888C8B");
       }
 
       let nodesRemoved = serverResponse.data.nodesRemoved;
