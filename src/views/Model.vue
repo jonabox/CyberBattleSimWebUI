@@ -1,190 +1,369 @@
 <template>
-  <div>
-    <v-container>
+  <v-card>
+    <!-- main container divides graph and node properties -->
+    <v-container fluid>
       <v-row>
         <v-col>
-          <!-- node editing options -->
-          <v-btn class="ma-4" color="secondary" v-on:click="tool = 'parent'">
-            add node
-          </v-btn>
-          <v-btn class="ma-4" color="secondary" v-on:click="tool = 'remove'">
-            remove
-          </v-btn>
-          <v-btn class="ma-4" color="secondary" v-on:click="tool = 'edit'">
-            edit
-          </v-btn>
-          <v-card-title> {{ tool }} mode </v-card-title>
-          <v-switch
-            color="secondary"
-            v-model="options.nodeLabels"
-            :label="`Show node labels: ${options.nodeLabels.toString()}`"
-            @change="changeOptions(options)"
-          ></v-switch>
-          <d3-network
-            :net-nodes="nodes"
-            :net-links="links"
-            :selection="{ nodes: selected, links: linksSelected }"
-            :options="options"
-            :link-cb="lcb"
-            @node-click="nodeClick"
-            @link-click="linkClick"
-          ></d3-network>
+          <v-card-title> {{ tool }} mode</v-card-title>
+          <v-card outlined>
+            <d3-network
+              :net-nodes="nodes"
+              :net-links="links"
+              :selection="{ nodes: selected, links: linksSelected }"
+              :options="options"
+              :link-cb="lcb"
+              @node-click="nodeClick"
+              @link-click="linkClick"
+            ></d3-network>
+            <v-card-actions>
+              <v-btn color="secondary" v-on:click="tool = 'parent'">
+                add node
+              </v-btn>
+              <v-btn color="secondary" v-on:click="tool = 'remove'">
+                remove
+              </v-btn>
+              <v-btn color="secondary" v-on:click="tool = 'edit'"> edit </v-btn>
+              <v-spacer></v-spacer>
+              <v-switch
+                color="secondary"
+                v-model="options.nodeLabels"
+                :label="`Show node labels: ${options.nodeLabels.toString()}`"
+                @input="changeOptions(options)"
+              ></v-switch>
+            </v-card-actions>
+          </v-card>
         </v-col>
         <v-col>
-          <v-form
-            v-if="lastSelected"
-            ref="form"
-            v-model="valid"
-            lazy-validation
-          >
-            <v-container>
-              <v-card-title>Editing Node: {{ lastSelected.name }}</v-card-title>
-              <!-- {{ this.nodes.map(function(item) {return item.id;})}}
-        {{this.isINodeIdUnique(lastSelected.name)}} -->
-              <v-row>
-                <v-col>
-                  {{ hasFormUpdates }}
-                  <v-text-field
-                    v-model="lastSelected.name"
-                    label="id"
-                    :rules="[
-                      (v) => !!v || 'Item is required',
-                      (v) => isINodeIdUnique(v) || 'node id already in use',
-                    ]"
-                    @input="(newNodeName) => handleNewNodeName(newNodeName)"
-                    @change="hasFormUpdates = true"
-                    required
-                  ></v-text-field>
+          <v-form v-model="valid" v-if="lastSelected">
+            <v-card-title>Editing: {{ lastSelected.name }}</v-card-title>
+            <v-tabs v-model="tab" background-color="transparent" grow>
+              <v-tab>General</v-tab>
+              <v-tab>Vulnerabilities</v-tab>
+              <v-tab>Firewall Rules</v-tab>
+            </v-tabs>
+            <v-tabs-items v-model="tab">
+              <v-tab-item>
+                <v-container>
+                  <v-row>
+                    <v-col>
+                      <v-text-field
+                        v-model="lastSelected.name"
+                        label="id"
+                        :rules="[
+                          (v) => !!v || 'Item is required',
+                          (v) => isINodeIdUnique(v) || 'node id already in use',
+                        ]"
+                        @change="hasFormUpdates = false"
+                        @input="(newNodeName) => handleNewNodeName(newNodeName)"
+                      ></v-text-field>
 
-                  <v-text-field
-                    v-model="lastSelected.value"
-                    label="value"
-                    :rules="[
-                      (v) => !!v || 'Item is required',
-                      (v) =>
-                        (0 <= v && v <= 100) ||
-                        'Value must range from 0 to 100',
-                    ]"
-                    required
-                  ></v-text-field>
+                      <v-text-field
+                        v-model="lastSelected.value"
+                        label="value"
+                        hint="Intrinsic value of the node (translates into a reward if the node gets owned)"
+                        persistent-hint
+                        :rules="[
+                          (v) => v === 0 || !!v || 'Item is required',
+                          (v) =>
+                            (0 <= v && v <= 100) ||
+                            'Value must range from 0 to 100',
+                        ]"
+                        @change="hasFormUpdates = true"
+                      ></v-text-field>
 
-                  <v-text-field
-                    v-model="lastSelected.services"
-                    :rules="[(v) => !!v || 'Item is required']"
-                    label="services"
-                  ></v-text-field>
-                </v-col>
-                <v-col>
-                  <v-text-field
-                    v-model="lastSelected.firewall"
-                    :rules="[(v) => !!v || 'Item is required']"
-                    label="firewall"
-                    required
-                  ></v-text-field>
+                      <v-text-field
+                        v-model="lastSelected.services"
+                        label="services"
+                        hint="List of port/protocol the node is listening to"
+                        :rules="[(v) => !!v || 'Item is required']"
+                        @change="hasFormUpdates = true"
+                        persistent-hint
+                      ></v-text-field>
+                    </v-col>
+                    <v-col>
+                      <v-text-field
+                        v-model="lastSelected.properties"
+                        label="properties"
+                        hint="Properties of the nodes, some of which can imply further vulnerabilities"
+                        :rules="[(v) => !!v || 'Item is required']"
+                        @change="hasFormUpdates = true"
+                        persistent-hint
+                      ></v-text-field>
 
-                  <v-text-field
-                    v-model="lastSelected.properties"
-                    :rules="[(v) => !!v || 'Item is required']"
-                    label="properties"
-                    required
-                  ></v-text-field>
-
-                  <v-text-field
-                    v-model="lastSelected.owned_string"
-                    label="owned string"
-                  ></v-text-field>
-                </v-col>
-              </v-row>
-            </v-container>
-            <!-- indices: description, type, outcome, precondition, rates, URL, reward_string -->
-            <v-container
-              v-for="(vulnerability, serverId) in lastSelected.vulnerabilities"
-              v-bind:key="serverId"
-            >
-              <v-divider />
-              <v-card-title>
-                Vulnerability: {{ vulnerability.id }}
-              </v-card-title>
-              <v-row>
-                <v-col>
-                  <v-text-field
-                    v-model="vulnerability.id"
-                    label="id"
-                    :rules="[
-                      (v) => !!v || 'Item is required',
-                      (v) =>
-                        isVulnerabilityIdUnique(v) ||
-                        'vulnerability id already in use',
-                    ]"
-                    required
-                  ></v-text-field>
-                  <v-text-field
-                    v-model="vulnerability.description"
-                    :rules="[(v) => !!v || 'Item is required']"
-                    label="vulnerability description"
-                    required
-                  ></v-text-field>
-
+                      <v-text-field
+                        v-model="lastSelected.owned_string"
+                        label="owned string"
+                        hint="String displayed when the node gets owned"
+                        @change="hasFormUpdates = true"
+                        persistent-hint
+                      ></v-text-field>
+                    </v-col>
+                  </v-row>
+                </v-container>
+              </v-tab-item>
+              <v-tab-item>
+                <v-container>
+                  <v-card-title
+                    >{{ lastSelected.name }} has {{ vulnerabilityString }}
+                  </v-card-title>
                   <v-select
-                    v-model="vulnerability.type"
-                    :items="vulnerabilityTypes"
-                    :rules="[(v) => !!v || 'Item is required']"
-                    label="vulnerability type"
-                    required
+                    v-model="selectedVulnerability"
+                    label="choose a vulnerability to edit"
+                    :items="Object.values(lastSelected.vulnerabilities)"
+                    @change="selectedCredential = null"
+                    item-text="id"
+                    return-object
                   ></v-select>
-                  <v-select
-                    v-model="vulnerability.outcome.nodes"
-                    :items="getPotentialOutcomes(lastSelected.name)"
-                    :rules="[(v) => !!v || 'Item is required']"
-                    :menu-props="{ maxHeight: '400' }"
-                    @input="
-                      (selection) =>
-                        updateEdges(selection, vulnerability.outcome.nodes_copy)
-                    "
-                    label="vulnerability outcomes"
-                    multiple
-                    small-chips
-                    deletable-chips
-                    hint="What nodes will be discovered if vulnerability is exploited"
-                    persistent-hint
-                    dense
-                    required
-                  ></v-select>
-                </v-col>
-                <!-- <v-col>
-            TODO: ADD SUPPORT FOR ADVANCED VULNERABILITY FEATURES
-            <v-text-field
-              v-model="vulnerability[3]"
-              label="vulnerability precondition"
-              required
-            ></v-text-field>
-            <v-text-field
-              v-model="vulnerability[4]"
-              label="vulnerability rates"
-              required
-            ></v-text-field>
+                  <div v-if="selectedVulnerability">
+                    <v-row>
+                      <v-col>
+                        <v-text-field
+                          v-model="selectedVulnerability.id"
+                          label="id"
+                          :rules="[
+                            (v) => !!v || 'Item is required',
+                            (v) =>
+                              isVulnerabilityIdUnique(v) ||
+                              'vulnerability id already in use',
+                          ]"
+                          @change="hasFormUpdates = true"
+                        ></v-text-field>
+                        <v-text-field
+                          v-model="selectedVulnerability.description"
+                          label="vulnerability description"
+                          hint="an optional description of what the vulnerability is"
+                          @change="hasFormUpdates = true"
+                          persistent-hint
+                        ></v-text-field>
+                      </v-col>
+                      <v-col>
+                        <v-select
+                          v-model="selectedVulnerability.type"
+                          label="vulnerability type"
+                          :items="vulnerabilityTypes"
+                          :rules="[(v) => !!v || 'Item is required']"
+                          @change="hasFormUpdates = true"
+                        ></v-select>
+                      </v-col>
+                      <!-- <v-col>
+                TODO: ADD SUPPORT FOR ADVANCED VULNERABILITY FEATURES
+                <v-text-field
+                  v-model="vulnerability[3]"
+                  label="vulnerability precondition"
+                  
+                ></v-text-field>
+                <v-text-field
+                  v-model="vulnerability[4]"
+                  label="vulnerability rates"
+                  @change="hasFormUpdates = true"
+                 
+                ></v-text-field>
 
-            <v-text-field
-              v-model="vulnerability[5]"
-              label="vulnerability URL"
-              required
-            ></v-text-field>
+                <v-text-field
+                  v-model="vulnerability[5]"
+                  label="vulnerability URL"
+                  @change="hasFormUpdates = true"
+                  
+                 
+                ></v-text-field>
 
-            <v-text-field
-              v-model="vulnerability[6]"
-              label="vulnerability reward string"
-              required
-            ></v-text-field> -->
-                <!-- </v-col> -->
-              </v-row>
-            </v-container>
-            <v-btn class="ma-4" @click="updateNode()">submit changes</v-btn>
-            <v-btn class="ma-4" @click="addVulnerability()"
-              >add new vulnerability</v-btn
+                <v-text-field
+                  v-model="vulnerability[6]"
+                  label="vulnerability reward string"
+                  @change="hasFormUpdates = true"
+                  
+                 
+                ></v-text-field> -->
+                      <!-- </v-col> -->
+                    </v-row>
+                    <v-card-title>
+                      {{ selectedVulnerability.id + " " + outcomeString }}
+                    </v-card-title>
+                    <div
+                      v-if="Object.keys(selectedVulnerability.outcome).length"
+                    >
+                      <v-select
+                        v-if="selectedVulnerability.outcome.nodes"
+                        v-model="selectedVulnerability.outcome.nodes"
+                        label="vulnerability outcomes"
+                        hint="What nodes will be discovered if vulnerability is exploited"
+                        :items="getPotentialOutcomes(lastSelected.name)"
+                        @input="
+                          (selection) =>
+                            updateEdges(
+                              selection,
+                              selectedVulnerability.outcome.nodes_copy
+                            )
+                        "
+                        @change="hasFormUpdates = true"
+                        multiple
+                        small-chips
+                        deletable-chips
+                        persistent-hint
+                      ></v-select>
+                      <div
+                        v-else-if="selectedVulnerability.outcome.credentials"
+                      >
+                        <v-select
+                          label="choose a credential to edit"
+                          v-model="selectedCredential"
+                          :items="
+                            Object.values(
+                              selectedVulnerability.outcome.credentials
+                            )
+                          "
+                          item-text="credential"
+                          return-object
+                        ></v-select>
+
+                        <v-row v-if="selectedCredential">
+                          <v-container>
+                            <v-row>
+                              <v-col>
+                                <v-text-field
+                                  v-model="selectedCredential.credential"
+                                  label="credential"
+                                  hint="exposed credential id"
+                                  @change="hasFormUpdates = true"
+                                  persistent-hint
+                                ></v-text-field>
+                              </v-col>
+                              <v-col>
+                                <v-select
+                                  v-model="selectedCredential.node"
+                                  label="node"
+                                  hint="node id"
+                                  :rules="[(v) => !!v || 'Item is required']"
+                                  :items="
+                                    getPotentialOutcomes(lastSelected.name)
+                                  "
+                                  @input="
+                                    (selection) =>
+                                      updateEdges(
+                                        [selection],
+                                        selectedCredential.node_copy
+                                      )
+                                  "
+                                  @change="hasFormUpdates = true"
+                                  persistent-hint
+                                ></v-select
+                              ></v-col>
+                              <v-col>
+                                <v-text-field
+                                  v-model="selectedCredential.port"
+                                  label="port"
+                                  hint="A port name"
+                                  :rules="[(v) => !!v || 'Item is required']"
+                                  @change="hasFormUpdates = true"
+                                  persistent-hint
+                                ></v-text-field>
+                              </v-col>
+                              <v-col>
+                                <v-btn class="my-2" @click="removeCredential()">
+                                  remove credential
+                                </v-btn>
+                              </v-col>
+                            </v-row>
+                          </v-container>
+                        </v-row>
+                        <v-btn class="my-4 mr-2" @click="addCredential()">
+                          add new credential
+                        </v-btn>
+                      </div>
+                      <v-btn
+                        v-if="selectedVulnerability"
+                        class="my-2"
+                        @click="removeOutcome()"
+                      >
+                        remove outcome
+                      </v-btn>
+                    </div>
+
+                    <v-select
+                      v-else
+                      v-model="selectedOutcomeType"
+                      label="select new outcome type"
+                      :items="outcomeTypes"
+                      @input="createOutcome()"
+                      @change="hasFormUpdates = true"
+                      persistent-hint
+                    >
+                    </v-select>
+                  </div>
+                  <v-divider class="mb-4" />
+                  <v-btn class="mr-2" @click="addVulnerability()"
+                    >add new vulnerability</v-btn
+                  >
+                  <v-btn @click="removeLastVulnerability()">
+                    remove vulnerability
+                  </v-btn>
+                </v-container>
+              </v-tab-item>
+              <v-tab-item>
+                <v-container>
+                  <v-row>
+                    <v-col
+                      v-for="(rules, groupName) in lastSelected.firewall"
+                      v-bind:key="groupName"
+                    >
+                      <!-- capitalize first letter of group name -->
+                      <v-card-title>
+                        {{
+                          groupName.charAt(0).toUpperCase() + groupName.slice(1)
+                        }}
+                        Firewall Rules:
+                      </v-card-title>
+                      <v-row
+                        v-for="(firewall, index) in rules"
+                        v-bind:key="index"
+                      >
+                        <v-col>
+                          <v-row>
+                            <v-col>
+                              <v-text-field
+                                v-model="firewall.port"
+                                label="port"
+                                :rules="[(v) => !!v || 'Item is required']"
+                                hint="A port name"
+                                persistent-hint
+                                @change="hasFormUpdates = true"
+                              ></v-text-field
+                            ></v-col>
+                            <v-col
+                              ><v-select
+                                v-model="firewall.permission"
+                                label="permission"
+                                hint="Determines if a rule is blocks or allows traffic"
+                                :items="['ALLOW', 'BLOCK']"
+                                :rules="[(v) => !!v || 'Item is required']"
+                                @change="hasFormUpdates = true"
+                                persistent-hint
+                              ></v-select>
+                            </v-col>
+                            <v-col>
+                              <v-text-field
+                                v-model="firewall.reason"
+                                label="reason"
+                                hint="An optional reason for the block/allow rule"
+                                @change="hasFormUpdates = true"
+                                persistent-hint
+                              ></v-text-field>
+                            </v-col>
+                          </v-row>
+                        </v-col>
+                      </v-row>
+                    </v-col>
+                  </v-row>
+                </v-container>
+              </v-tab-item>
+            </v-tabs-items>
+            <v-btn
+              :disabled="!hasFormUpdates || !valid"
+              class="ma-2"
+              color="success"
+              @click="updateNode()"
+              >submit changes</v-btn
             >
-            <v-btn class="ma-4" @click="removeLastVulnerability()">
-              remove last vulnerability
-            </v-btn>
           </v-form>
         </v-col>
       </v-row>
@@ -204,23 +383,42 @@
         </marker>
       </defs>
     </svg>
-  </div>
+  </v-card>
 </template>
 
 <script>
 import * as utils from "../components/utils.js";
 import D3Network from "vue-d3-network";
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from "uuid";
 import axios from "axios";
 const rectSvg = '<svg version="1.1"><rect width="25" height="15"/></svg>';
+const defaultEdgeColor = "#888C8B";
+const newEdgeColor = "#FFA500";
+const selectedNodeColor = "#FFA500";
+const defaultNodeColor = "#C2EDB9";
+const removedEdgeColor = "#A71E36";
 export default {
   components: {
     D3Network,
   },
   data() {
     return {
+      tab: null,
       //
+      selectedVulnerability: null,
+      selectedCredential: null,
+      selectedOutcomeType: null,
       vulnerabilityTypes: ["LOCAL", "REMOTE"],
+      outcomeTypes: [
+        "LeakedCredentials",
+        "LeakedNodesId",
+        "PrivilegeEscalation",
+        "AdminEscalation",
+        "SystemEscalation",
+        "CustomerData",
+        "LateralMove",
+        "ExploitFailed",
+      ],
       //
       tool: "edit",
       lastNodeId: 0,
@@ -239,9 +437,9 @@ export default {
       showSelection: true,
       showMenu: true,
       linksSelected: {},
-      // Interface Components
       hasFormUpdates: false,
-      valid: true,
+      // Interface Components
+      valid: false,
       nameRules: [
         (v) => !!v || "Name is required",
         (v) => (v && v.length <= 10) || "Name must be less than 10 characters",
@@ -257,7 +455,7 @@ export default {
       options: {
         force: 1000,
         nodeSize: 25,
-        nodeLabels: false,
+        nodeLabels: true,
         linkWidth: 2,
         resizeListener: false,
         select: null,
@@ -269,12 +467,55 @@ export default {
   created: function () {
     this.getGraphData();
   },
+  computed: {
+    vulnerabilityString() {
+      if (this.lastSelected.vulnerabilities) {
+        let vulnerabilityCount = Object.keys(
+          this.lastSelected.vulnerabilities
+        ).length;
+        if (vulnerabilityCount == 1) {
+          return "1 vulnerability";
+        } else {
+          return vulnerabilityCount + " vulnerabilities";
+        }
+      } else {
+        return "no vulnerabilities";
+      }
+    },
+    outcomeString() {
+      if (this.selectedVulnerability.outcome) {
+        if (this.selectedVulnerability.outcome.nodes) {
+          return "could leak the following nodes";
+        } else if (this.selectedVulnerability.outcome.credentials) {
+          let credentialCount = Object.keys(
+            this.selectedVulnerability.outcome.credentials
+          ).length;
+          if (credentialCount == 1) {
+            return "could leak 1 credential";
+          } else {
+            return "could leak " + credentialCount + " credentials";
+          }
+        } else if (this.selectedVulnerability.outcome.customer_data) {
+          return "could leak customer data";
+        } else {
+          return "has no outcome";
+        }
+      } else {
+        return "has no outcome";
+      }
+    },
+  },
   methods: {
+    // selection(array): nodes to be included in current graph model
+    // reference(array): nodes already in graph model
+    // adds and removes edges in graph to update graph model
     updateEdges(selection, reference) {
+      console.log(selection);
+      console.log(reference);
       let toAdd = selection.filter((x) => !reference.includes(x));
       let toRemove = reference.filter((x) => !selection.includes(x));
       for (let nodeId of toAdd) {
-        // check if edge is not already added
+        // check if edge is already added
         let edgeToAdd = this.links.find(
           (edge) => edge.sid == this.lastSelected.name && edge.tid == nodeId
         );
@@ -286,7 +527,7 @@ export default {
           };
           this.links.push(edgeToAdd);
         }
-        this.$set(edgeToAdd, "_color", "#FFA500");
+        this.$set(edgeToAdd, "_color", newEdgeColor);
         reference.push(nodeId);
       }
       for (let nodeId of toRemove) {
@@ -295,21 +536,32 @@ export default {
           (edge) => edge.sid == this.lastSelected.name && edge.tid == nodeId
         );
         if (edgeToRemove) {
-          this.$set(edgeToRemove, "_color", "#A71E36");
+          this.$set(edgeToRemove, "_color", removedEdgeColor);
           reference.splice(reference.indexOf(nodeId), 1);
         }
       }
     },
     handleNewNodeName(newName) {
+      let oldName = this.lastSelected.tempName;
       for (let node of this.nodes) {
         for (let vulnerability of Object.values(node.vulnerabilities)) {
-          let oldName = this.lastSelected.tempName;
-          let outcomeIndex = vulnerability.outcome.nodes.indexOf(oldName);
-          if (outcomeIndex != -1) {
-            vulnerability.outcome.nodes.splice(outcomeIndex, 1, newName);
-            //outcome index should be the same for reference
-            vulnerability.outcome.nodes_copy.splice(outcomeIndex, 1, newName);
-            console.log(vulnerability.outcome.nodes);
+          // change name in outcome nodes
+          if (vulnerability.outcome.nodes) {
+            let outcomeIndex = vulnerability.outcome.nodes.indexOf(oldName);
+            if (outcomeIndex != -1) {
+              vulnerability.outcome.nodes.splice(outcomeIndex, 1, newName);
+              //outcome index should be the same for reference
+              vulnerability.outcome.nodes_copy.splice(outcomeIndex, 1, newName);
+            }
+          }
+          // change name in outcome credentials
+          if (vulnerability.outcome.credentials) {
+            for (let credential of vulnerability.outcome.credentials) {
+              if (credential.node == oldName) {
+                credential.node = newName;
+                credential.node_copy = [newName];
+              }
+            }
           }
         }
       }
@@ -353,7 +605,7 @@ export default {
               properties: node["properties"],
               owned_string: node["owned_string"],
               vulnerabilities: node["vulnerabilities"],
-              _color: "#c2edb9",
+              _color: defaultNodeColor,
               svgSym: rectSvg,
               action: "None",
               // outcome (edge) modification
@@ -364,18 +616,34 @@ export default {
             for (let [vulnerabilityId, vulnerability] of Object.entries(
               node.vulnerabilities
             )) {
-              for (let neighborId of vulnerability.outcome.nodes) {
-                this.links.push({ sid: nodeId, tid: neighborId });
+              //check if vulnerability exposes nodes
+              if (vulnerability.outcome.nodes) {
+                for (let neighborId of vulnerability.outcome.nodes) {
+                  this.links.push({ sid: nodeId, tid: neighborId });
+                }
+                // assign copy for reference
+                this.$set(
+                  vulnerability.outcome,
+                  "nodes_copy",
+                  vulnerability.outcome.nodes.concat()
+                );
+              }
+              //check if vulnerability exposes credentials
+              if (vulnerability.outcome.credentials) {
+                for (let credential of vulnerability.outcome.credentials) {
+                  this.links.push({ sid: nodeId, tid: credential.node });
+                  // assign copy for reference (array enables compatibility with updateEdges)
+                  this.$set(credential, "node_copy", [credential.node]);
+                }
               }
               this.$set(vulnerability, "id", vulnerabilityId);
               this.$set(vulnerability, "serverId", vulnerabilityId);
-              this.$set(
-                vulnerability.outcome,
-                "nodes_copy",
-                vulnerability.outcome.nodes.concat()
-              );
             }
-            this.lastNodeId = node;
+            this.lastNodeId = nodeId;
+          }
+          if (this.nodes.length) {
+            // select the first added node
+            this.selectNode(this.nodes[0]);
           }
           console.log(this.nodes);
         })
@@ -392,9 +660,9 @@ export default {
       axios
         .post("http://localhost:5000/api/change_value", formData)
         .then((response) => {
-          console.log(response);
           this.hasFormUpdates = false;
-          this.finalizeNodeUpdate(response);
+          console.log(response);
+          this.finalizeNodeUpdate();
         })
         .catch((error) => {
           console.log({ error });
@@ -402,7 +670,7 @@ export default {
         });
     },
 
-    finalizeNodeUpdate(serverResponse) {
+    finalizeNodeUpdate() {
       //re-cache server IDs
       this.lastSelected.serverId = this.lastSelected.name;
       for (let vulnerability of Object.values(
@@ -411,33 +679,24 @@ export default {
         vulnerability.serverId = vulnerability.id;
       }
 
-      // update removed and added nodes to default color
-      for (let addedNodeId of serverResponse.data.nodesAdded) {
-        let edgeToAdd = this.links.find(
-          (edge) =>
-            edge.sid == this.lastSelected.name && edge.tid == addedNodeId
-        );
-        this.$set(edgeToAdd, "_color", "#888C8B");
-      }
-
-      let nodesRemoved = serverResponse.data.nodesRemoved;
-      this.links = this.links.filter(
-        (link) =>
-          link.sid != this.lastSelected.name || !nodesRemoved.includes(link.tid)
-      );
+      // prune links that include removed nodes
+      this.links = this.links.filter((link) => link._color != removedEdgeColor);
+      this.links.forEach((link) => {
+        if (link._color == newEdgeColor) {
+          link._color = defaultEdgeColor;
+        }
+      });
     },
+
     addVulnerability() {
       let uuid = uuidv4();
-      console.log(uuid)
+      console.log(uuid);
       let newVulnerability = {
         id: uuid,
         serverId: uuid,
         description: null,
         type: null,
-        outcome: {
-          nodes: [],
-          nodes_copy: [],
-        },
+        outcome: {},
         precondition: "true",
         rates: [0, 0, 0],
         URL: "",
@@ -445,11 +704,71 @@ export default {
         reward_string: "",
       };
       this.$set(this.lastSelected.vulnerabilities, uuid, newVulnerability);
-      // this.lastSelected.vulnerabilities.push(newVulnerability);
+      this.selectedVulnerability = newVulnerability;
+      this.selectedOutcomeType = null;
+      this.hasFormUpdates = true;
     },
     removeLastVulnerability() {
       this.lastSelected.vulnerabilities.pop();
     },
+    addCredential() {
+      let uuid = uuidv4();
+      let newCredential = {
+        credential: uuid,
+        node: null,
+        node_copy: [],
+        port: null,
+      };
+      let outcome = this.selectedVulnerability.outcome;
+      // assign empty list to credentials properity if nonexistent
+      console.log("outcome");
+      console.log(outcome);
+      console.log("outcome");
+      if (!outcome.credentials) {
+        this.$set(outcome, "credentials", []);
+      }
+      outcome.credentials.push(newCredential);
+      this.selectedCredential = newCredential;
+    },
+
+    removeCredential() {
+      let credentials = this.selectedVulnerability.outcome.credentials;
+      let credentialToRemove = this.selectedCredential;
+      credentials.splice(credentials.indexOf(credentialToRemove), 1);
+      this.updateEdges([], this.selectedCredential.node_copy);
+      this.selectedCredential = null;
+    },
+
+    createOutcome() {
+      switch (this.selectedOutcomeType) {
+        case "LeakedCredentials":
+          this.addCredential();
+          break;
+        case "LeakedNodesId":
+          this.$set(this.selectedVulnerability.outcome, "nodes", []);
+          this.$set(this.selectedVulnerability.outcome, "nodes_copy", []);
+          break;
+        case "CustomerData":
+          this.$set(this.selectedVulnerability.outcome, "customer_data", {});
+          break;
+        default:
+          console.log(this.selectedOutcomeType + " not supported");
+      }
+    },
+
+    removeOutcome() {
+      if (this.selectedVulnerability.outcome.credentials) {
+        for (let credential of this.selectedVulnerability.outcome.credentials) {
+          this.updateEdges([], credential.node_copy);
+        }
+      } else if (this.selectedVulnerability.outcome.nodes) {
+        this.updateEdges([], this.selectedVulnerability.outcome.nodes_copy);
+      }
+      // assign outcome property to empty object
+      this.$set(this.selectedVulnerability, "outcome", {});
+      this.selectedOutcomeType = null;
+    },
+
     linkCb(link) {
       link.name = "Link " + link.id;
       return link;
@@ -490,12 +809,13 @@ export default {
     },
     // -- Selection
     selectNode(node) {
-      // this.selected[node.id] = node
       if (this.lastSelected) {
-        this.lastSelected._color = "#c2edb9"; // normal color
+        this.lastSelected._color = defaultNodeColor; // normal color
       }
       this.lastSelected = node;
-      node._color = "#FFA500";
+      this.selectedVulnerability = null;
+      this.selectedCredential = null;
+      node._color = selectedNodeColor;
     },
     selectNodesLinks() {
       for (let link of this.links) {
@@ -562,7 +882,7 @@ export default {
         case "normal":
           nNode.svgSym = rectSvg;
           nNode.action = "None";
-          nNode._color = "#c2edb9";
+          nNode._color = defaultNodeColor;
           break;
         case "and":
           nNode.action = "And";

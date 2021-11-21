@@ -152,7 +152,7 @@ export default {
         }
       }
     },
-    runBenchmarks() {
+    runBenchmarks() { 
       axios
         .get("http://localhost:5000/api/run_benchmarks")
         .then((response) => {
