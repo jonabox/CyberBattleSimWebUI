@@ -3,6 +3,13 @@ module.exports = {
     "vuetify"
   ],
   devServer: {
-    proxy: 'http://localhost:5000'
-}
+    host: 'localhost',
+    headers: { 'Access-Control-Allow-Origin': '*' },
+    proxy: {
+      '^/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true
+      },
+    }
+  }
 }
