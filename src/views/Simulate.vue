@@ -1,93 +1,198 @@
 <template>
   <div>
-    <v-container>
-      <v-card class="ma-4 pa-4">
-        <v-switch
-          color="secondary"
-          v-model="options.nodeLabels"
-          :label="`Show node labels: ${options.nodeLabels.toString()}`"
-          @change="changeOptions(options)"
-          class="ma-4"
-        ></v-switch>
-        <d3-network
-          :net-nodes="nodes"
-          :net-links="links"
-          :selection="{ nodes: selected, links: linksSelected }"
-          :options="options"
-          :link-cb="lcb"
-          @node-click="nodeClick"
-          @link-click="linkClick"
-        ></d3-network>
-      </v-card>
-      <v-card class="ma-4">
-        <v-btn class="ma-4" @click="getDiscoveredNames()"
-          >Get Discovered Nodes</v-btn
-        >
-        <v-btn class="ma-4" @click="listAllAttacks()">List All Attacks</v-btn>
-      </v-card>
-      <v-card
-        v-for="(vulnerability, vulnerabilityIndex) in vulnerabilities"
-        v-bind:key="vulnerabilityIndex"
-        class="ma-4 pa-4"
-      >
-        <v-card-title>
-          {{ "Node " + vulnerability.id + " vulnerabilities" }}
-        </v-card-title>
-        <v-card-subtitle>
-          {{ "Node status: " + vulnerability.status }}
-        </v-card-subtitle>
-        <v-chip
-          v-for="(property, propertyIndex) in vulnerability.properties"
-          v-bind:key="propertyIndex"
-          v-text="property"
-        />
-        <v-divider class="ma-4 pa-4"></v-divider>
-        <v-container>
-          <v-row>
-            <v-col>
+    <v-container fluid>
+      <v-row>
+        <v-col>
+          <v-card class="mb-4">
+            <v-card-title v-text="'Total Reward: ' + reward" />
+            <v-sparkline
+              v-if="cachedRewards"
+              :value="cachedRewards"
+              :labels="cachedRewards"
+              :label-size="labelSize"
+              :auto-draw-duration="graphAnimationDuration"
+              color="black"
+              auto-draw
+              stroke-linecap="round"
+              line-width="2"
+              height="50"
+            />
+          </v-card>
+          <v-card>
+            <v-card-title> Discovered Nodes </v-card-title>
+            <d3-network
+              :net-nodes="nodes"
+              :net-links="links"
+              :selection="{ nodes: selected, links: linksSelected }"
+              :options="options"
+              :link-cb="lcb"
+              @node-click="nodeClick"
+            ></d3-network>
+            <v-card-actions>
+              <v-switch
+                color="secondary"
+                v-model="options.nodeLabels"
+                :label="`Show node labels: ${options.nodeLabels.toString()}`"
+                @change="changeOptions(options)"
+              ></v-switch>
+            </v-card-actions>
+          </v-card>
+        </v-col>
+        <v-col>
+          <v-card class="mb-4">
+            <v-card-title> Actions </v-card-title>
+            <template v-if="selectedAttack">
+              <v-card-actions>
+                <v-select
+                  v-model="selectedAttack"
+                  label="choose a target node"
+                  :items="Array.from(attackMap.values())"
+                  item-text="id"
+                  return-object
+                ></v-select>
+              </v-card-actions>
+              <v-card-title>
+                {{ selectedAttack.id + " vulnerabilities" }}
+              </v-card-title>
+              <v-card-subtitle>
+                {{ "status: " + selectedAttack.status }}
+              </v-card-subtitle>
+              <v-chip
+                v-for="(property, propertyIndex) in selectedAttack.properties"
+                v-bind:key="propertyIndex"
+                v-text="property"
+                class="mx-4"
+              />
               <v-list>
-                Local Attacks:
-                <v-list-item
-                  v-for="(attack, attackIndex) in vulnerability.local_attacks"
-                  :key="attackIndex"
-                >
-                  <v-list-item-content>
-                    <v-list-item-title v-text="attack" />
-                  </v-list-item-content>
-                  <v-list-item-action>
-                    <v-btn
-                      color="green lighten-2"
-                      @click="runExploit(vulnerability.id, attack)"
+                <template v-if="selectedAttack.local_attacks.length">
+                  <v-subheader>Local Attacks:</v-subheader>
+                  <v-list-item
+                    v-for="(
+                      attack, attackIndex
+                    ) in selectedAttack.local_attacks"
+                    v-bind:key="attackIndex"
+                  >
+                    <v-list-item-content>
+                      <v-list-item-title>
+                        {{ attack }}
+                      </v-list-item-title>
+                    </v-list-item-content>
+
+                    <v-list-item-action>
+                      <v-btn
+                        color="green lighten-2"
+                        @click="runAttack(attack, 'local_attacks')"
+                      >
+                        Exploit
+                        <v-icon right dark> mdi-skull-crossbones </v-icon>
+                      </v-btn>
+                    </v-list-item-action>
+                  </v-list-item>
+                </template>
+                <template v-if="selectedAttack.remote_attacks.length">
+                  <v-subheader> Remote Attacks: </v-subheader>
+                  <v-list-item
+                    v-for="(
+                      attack, attackIndex
+                    ) in selectedAttack.remote_attacks"
+                    :key="attackIndex"
+                  >
+                    <v-list-item-content>
+                      <v-list-item-title>
+                        {{ attack }}
+                      </v-list-item-title>
+                    </v-list-item-content>
+
+                    <v-list-item-action>
+                      <v-btn
+                        color="green lighten-2"
+                        :disabled="!selectedAttackSourceNode"
+                        @click="runAttack(attack, 'remote_attacks')"
+                      >
+                        Exploit
+                        <v-icon right dark> mdi-skull-crossbones </v-icon>
+                      </v-btn>
+                    </v-list-item-action>
+                  </v-list-item>
+                  <v-list-item>
+                    <v-select
+                      v-model="selectedAttackSourceNode"
+                      label="source node for remote attack"
+                      :items="Array.from(ownedNodes)"
+                      return-object
+                    ></v-select>
+                  </v-list-item>
+                </template>
+              </v-list>
+            </template>
+          </v-card>
+          <v-card max-height="40rem">
+            <v-card-title> Credentials </v-card-title>
+            <template v-if="gatheredCredentials.length">
+              <v-simple-table>
+                <template>
+                  <thead>
+                    <tr>
+                      <th class="text-left">Node ID</th>
+                      <th class="text-left">Port</th>
+                      <th class="text-left">Credential</th>
+                      <th class="text-left">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="credential in gatheredCredentials"
+                      :key="credential.credential"
                     >
-                      Exploit
-                      <v-icon right dark> mdi-skull-crossbones </v-icon>
-                    </v-btn>
-                  </v-list-item-action>
-                </v-list-item>
-              </v-list>
-            </v-col>
-            <v-divider vertical></v-divider>
-            <v-col>
-              <v-list>
-                Remote Attacks:
-                <v-list-item
-                  v-for="(attack, attackIndex) in vulnerability.remote_attacks"
-                  :key="attackIndex"
-                >
+                      <td>{{ credential.node }}</td>
+                      <td>{{ credential.port }}</td>
+                      <td>{{ credential.credential }}</td>
+                      <td>
+                        <v-btn
+                          color="green lighten-2"
+                          small
+                          :disabled="!selectedInfectSourceNode"
+                          @click="connectAndInfect(credential)"
+                        >
+                          connect
+                          <v-icon right dark> mdi-lock-open </v-icon>
+                        </v-btn>
+                      </td>
+                    </tr>
+                  </tbody>
+                </template>
+              </v-simple-table>
+              <v-card-actions>
+                <v-select
+                  v-model="selectedInfectSourceNode"
+                  label="source node for connection"
+                  :items="Array.from(ownedNodes)"
+                  return-object
+                ></v-select>
+              </v-card-actions>
+            </template>
+          </v-card>
+        </v-col>
+        <v-col>
+          <v-card class="overflow-y-auto" max-height="50rem">
+            <v-card-title> Logs </v-card-title>
+            <v-list two-line v-if="logs.length">
+              <div v-for="log in logs" v-bind:key="log.time">
+                <v-divider />
+                <v-list-item>
                   <v-list-item-content>
-                    <v-list-item-title v-text="attack" />
+                    {{ log.level + ": " + log.message }}
+                    <v-list-item-subtitle
+                      v-text="new Date(log.time * 1000)"
+                      style="white-space: normal"
+                    />
                   </v-list-item-content>
-                  <v-list-item-action>
-                    <v-btn color="green lighten-2" @click="reserve">
-                      Exploit
-                    </v-btn>
-                  </v-list-item-action>
                 </v-list-item>
-              </v-list>
-            </v-col>
-          </v-row>
-        </v-container>
-      </v-card>
+              </div>
+            </v-list>
+          </v-card>
+        </v-col>
+      </v-row>
     </v-container>
     <svg>
       <defs>
@@ -108,26 +213,40 @@
 </template>
 
 <script>
-import * as utils from "../components/utils.js";
 import D3Network from "vue-d3-network";
 import axios from "axios";
+const secondsToMilliseconds = 1000; // seconds to milliseconds
+const graphAnimationDuration = 1000; // in milliseconds
 const rectSvg = '<svg version="1.1"><rect width="25" height="15"/></svg>';
+const discoveredNodeColor = "#2C9E43";
+const ownedNodeColor = "#BE385D";
+const initialLabelSize = 7;
+const labelReductionRate = 14;
+
 export default {
   components: {
     D3Network,
   },
   data() {
     return {
-      vulnerabilities: {},
       //
-      nodeStore: {},
-      linkStore: {},
+      selectedAttack: null,
+      selectedAttackSourceNode: null,
+      selectedInfectSourceNode: null,
+      //
+      reward: 0,
+      cachedRewards: null,
+      logs: [],
+      //
+      attackMap: new Map(),
+      nodeMap: new Map(),
+      edgeSet: new Set(),
+      ownedNodes: new Set(),
+      discoveredNodes: new Set(),
+      gatheredCredentials: [],
       //
       vulnerabilityTypes: ["LOCAL", "REMOTE"],
       //
-      tool: "edit",
-      lastNodeId: 0,
-      lastLinkId: 0,
       settings: {
         maxLinks: 3,
         maxNodes: 150,
@@ -138,7 +257,6 @@ export default {
       toSvg: false,
       nodeSym: null,
       selected: {},
-      lastSelected: null,
       showSelection: true,
       showMenu: true,
       linksSelected: {},
@@ -146,68 +264,119 @@ export default {
       nodes: [],
       links: [],
       options: {
-        force: 1000,
+        force: 2000,
         nodeSize: 25,
         nodeLabels: true,
         linkWidth: 2,
-        resizeListener: false,
+        resizeListener: true,
         select: null,
-
-        checkbox: false,
       },
+      // constants
+      secondsToMilliseconds: secondsToMilliseconds,
+      graphAnimationDuration: graphAnimationDuration,
     };
   },
   created: function () {
     this.getGraphData();
+    this.listAllAttacks();
+    this.getTotalReward();
+    this.getCredentials();
+  },
+  computed: {
+    labelSize() {
+      return (
+        initialLabelSize -
+        Math.floor(this.cachedRewards.length / labelReductionRate)
+      );
+    },
   },
   methods: {
-    updateEdges(selection, reference) {
-      let toAdd = selection.filter((x) => !reference.includes(x));
-      let toRemove = reference.filter((x) => !selection.includes(x));
-      for (let nodeId of toAdd) {
-        // check if edge is not already added
-        let edgeToAdd = this.links.find(
-          (edge) => edge.sid == this.lastSelected.name && edge.tid == nodeId
-        );
-        // if not, create new edge and add it to graph
-        if (!edgeToAdd) {
-          edgeToAdd = {
-            sid: this.lastSelected.name,
-            tid: nodeId,
-          };
-          this.links.push(edgeToAdd);
-        }
-        this.$set(edgeToAdd, "_color", "#FFA500");
-        reference.push(nodeId);
-      }
-      for (let nodeId of toRemove) {
-        // check if edge exists
-        let edgeToRemove = this.links.find(
-          (edge) => edge.sid == this.lastSelected.name && edge.tid == nodeId
-        );
-        if (edgeToRemove) {
-          this.$set(edgeToRemove, "_color", "#A71E36");
-          reference.splice(reference.indexOf(nodeId), 1);
-        }
-      }
-    },
-    getDiscoveredNames() {
+    getGraphData() {
       axios
-        .get("http://localhost:5000/api/list_discovered_nodes")
+        .get("/api/get_nodes")
         .then((response) => {
-          console.log(response.data);
-          this.nodes.splice(0); // clears content of array; splicing for reactivity
-          for (let discoveredNode of response.data) {
-            let nodeToUpdate = this.nodeStore[discoveredNode.id];
-            if (nodeToUpdate) {
-              this.$set(nodeToUpdate, status, discoveredNode.status);
-              if (discoveredNode.status == "discovered"){
-                this.$set(nodeToUpdate, "_color", "#888C8B");
+          console.log("Success!");
+          let nodes = response.data;
+          for (let [nodeId, node] of Object.entries(nodes)) {
+            this.nodeMap.set(nodeId, {
+              id: nodeId,
+              name: nodeId, // front-facing value
+              services: node["services"],
+              firewall: node["firewall"],
+              value: node["value"],
+              properties: node["properties"],
+              owned_string: node["owned_string"],
+              vulnerabilities: node["vulnerabilities"],
+              _color: ownedNodeColor,
+              svgSym: rectSvg,
+              action: "None",
+              // outcome (edge) modification
+              outcomesToAdd: [],
+              outcomesToRemove: [],
+            });
+            for (let [vulnerabilityId, vulnerability] of Object.entries(
+              node.vulnerabilities
+            )) {
+              if (vulnerability.outcome.nodes) {
+                for (let neighborId of vulnerability.outcome.nodes) {
+                  this.edgeSet.add({
+                    sid: nodeId,
+                    tid: neighborId,
+                  });
+                }
               }
-              this.nodes.push(nodeToUpdate);
-              console.log(this.nodes);
+              if (vulnerability.outcome.credentials) {
+                for (let credential of vulnerability.outcome.credentials) {
+                  let neighborId = credential.node;
+                  this.edgeSet.add({
+                    sid: nodeId,
+                    tid: neighborId,
+                  });
+                }
+              }
+              this.$set(vulnerability, "id", vulnerabilityId);
+              this.$set(vulnerability, "serverId", vulnerabilityId);
             }
           }
+          // finally update graph
+          this.updateGraph();
+        })
+        .catch((error) => {
+          console.log({ error });
+          alert(error.response.data);
+        });
+    },
+    updateGraph() {
+      axios
+        .get("/api/list_nodes")
+        .then((response) => {
+          // render nodes
+          for (let node of response.data.result) {
+            let nodeToUpdate = this.nodeMap.get(node.id);
+            if (nodeToUpdate) {
+              this.$set(nodeToUpdate, status, node.status);
+              if (node.status == "discovered") {
+                this.$set(nodeToUpdate, "_color", discoveredNodeColor);
+              } else if (node.status == "owned") {
+                this.ownedNodes.add(node.id);
+              }
+              if (!this.discoveredNodes.has(node.id)) {
+                this.nodes.push(nodeToUpdate);
+                this.discoveredNodes.add(node.id);
+              }
+            }
+          }
+          // render edges
+          for (let edge of this.edgeSet) {
+            let { sid: startId, tid: endId } = edge;
+            if (
+              this.discoveredNodes.has(startId) &&
+              this.discoveredNodes.has(endId)
+            ) {
+              this.links.push(edge);
+            }
+          }
+          this.logs = response.data.logs;
         })
         .catch((error) => {
           console.log({ error });
@@ -217,22 +386,16 @@ export default {
 
     listAllAttacks() {
       axios
-        .get("http://localhost:5000/api/list_all_attacks")
+        .get("/api/list_all_attacks")
         .then((response) => {
           console.log(response.data);
-          this.vulnerabilities = response.data;
-          // update graph
-          this.nodes.splice(0); // clears content of array; splicing for reactivity
-          for (let discoveredNode of response.data) {
-            let nodeToUpdate = this.nodeStore[discoveredNode.id];
-            if (nodeToUpdate) {
-              this.$set(nodeToUpdate, status, discoveredNode.status);
-              console.log(nodeToUpdate.status);
-              if (discoveredNode.status == "discovered"){
-                this.$set(nodeToUpdate, "_color", "#888C8B");
-              }
-              this.nodes.push(nodeToUpdate);
-            }
+          response.data.result.forEach((node) => {
+            this.attackMap.set(node.id, node);
+          });
+          this.logs = response.data.logs;
+          // select an attack if one has not been selected
+          if (!this.selectedAttack && response.data.result.length) {
+            this.selectedAttack = response.data.result[0];
           }
         })
         .catch((error) => {
@@ -241,25 +404,57 @@ export default {
         });
     },
 
-    runExploit(nodeId, vulnerabilityId) {
+    getTotalReward() {
+      axios
+        .get("/api/total_reward")
+        .then((response) => {
+          this.reward = response.data.result;
+          this.logs = response.data.logs;
+          this.cachedRewards = response.data.cachedRewards;
+        })
+        .catch((error) => {
+          console.log({ error });
+          alert(error.response.data);
+        });
+    },
+
+    getCredentials() {
+      axios
+        .get("/api/credentials_gathered_so_far")
+        .then((response) => {
+          this.gatheredCredentials = response.data.result;
+          this.logs = response.data.logs;
+          this.cachedRewards = response.data.cachedRewards;
+        })
+        .catch((error) => {
+          console.log({ error });
+          alert(error.response.data);
+        });
+    },
+
+    runAttack(vulnerabilityId, attackType) {
       let formData = new FormData();
-      formData.append("nodeId", nodeId);
+      formData.append("targetNodeId", this.selectedAttack.id);
+      formData.append("sourceNodeId", this.selectedAttackSourceNode);
       formData.append("vulnerabilityId", vulnerabilityId);
+      let url =
+        attackType == "local_attacks"
+          ? "/api/run_attack"
+          : "/api/run_remote_attack";
+
       axios
-        .post("http://localhost:5000/api/run_attack", formData)
+        .post(url, formData)
         .then((response) => {
           console.log(response.data);
-          for (let discoveredNode of response.data.nodes) {
-            //display node in graph
-            let nodeToUpdate = this.nodeStore[discoveredNode];
-            if (nodeToUpdate) {
-              this.$set(nodeToUpdate, status, discoveredNode.status);
-              if (discoveredNode.status == "discovered"){
-                this.$set(nodeToUpdate, "_color", "#888C8B");
-              }
-              this.nodes.push(nodeToUpdate);
-            }
-          }
+          this.logs = response.data.logs;
+          // update graph
+          this.updateGraph();
+          // list possibly new attacks
+          this.listAllAttacks();
+          // update reward
+          this.getTotalReward();
+          // get credentials
+          this.getCredentials();
         })
         .catch((error) => {
           console.log({ error });
@@ -267,226 +462,39 @@ export default {
         });
     },
 
-    hideNode() {
-      // Object.assign(node,{_cssClass:'hidden'})
-      // this.$set(this.nodes,node.index,node)
-    },
-
-    getGraphData() {
+    connectAndInfect(credential) {
+      let formData = new FormData();
+      formData.append("targetNodeId", credential.node);
+      formData.append("sourceNodeId", this.selectedInfectSourceNode);
+      formData.append("credentialId", credential.credential);
+      formData.append("port", credential.port);
       axios
-        .get("http://localhost:5000/api/get_nodes")
+        .post("/api/connect_and_infect", formData)
         .then((response) => {
-          console.log("Success!");
-          let nodes = response.data;
-          for (let [nodeId, node] of Object.entries(nodes)) {
-            this.nodeStore[nodeId] = {
-              id: nodeId,
-              name: nodeId, // front-facing value
-              tempName: nodeId, // temporary value to handle name changes
-              serverId: nodeId, // server reference
-              // TODO: add agenet installed
-              services: node["services"],
-              firewall: node["firewall"],
-              value: node["value"],
-              properties: node["properties"],
-              owned_string: node["owned_string"],
-              vulnerabilities: node["vulnerabilities"],
-              _color: "#be385d",
-              svgSym: rectSvg,
-              action: "None",
-              // outcome (edge) modification
-              outcomesToAdd: [],
-              outcomesToRemove: [],
-            };
-
-            for (let [vulnerabilityId, vulnerability] of Object.entries(
-              node.vulnerabilities
-            )) {
-              for (let neighborId of vulnerability.outcome.nodes) {
-                // concatenation of id's become key
-                this.linkStore[nodeId + neighborId] = {
-                  sid: nodeId,
-                  tid: neighborId,
-                };
-              }
-              this.$set(vulnerability, "id", vulnerabilityId);
-              this.$set(vulnerability, "serverId", vulnerabilityId);
-              this.$set(
-                vulnerability.outcome,
-                "nodes_copy",
-                vulnerability.outcome.nodes.concat()
-              );
-            }
-            this.lastNodeId = node;
-          }
-          // this.listAllAttacks();
+          console.log(response.data);
+          this.logs = response.data.logs;
+          // update graph
+          this.updateGraph();
+          // list possibly new attacks
+          this.listAllAttacks();
+          // update reward
+          this.getTotalReward();
+          // get credentials
+          this.getCredentials();
         })
         .catch((error) => {
           console.log({ error });
           alert(error.response.data);
         });
+    },
+
+    nodeClick(event, node) {
+      this.selectedAttack = this.attackMap.get(node.id);
     },
 
     linkCb(link) {
       link.name = "Link " + link.id;
       return link;
-    },
-    selection() {
-      return {
-        nodes: this.selected,
-        links: this.linksSelected,
-      };
-    },
-    updateSelection() {
-      this.showSelection =
-        Object.keys(this.selected).length |
-        Object.keys(this.linksSelected).length;
-    },
-    removeLink(link) {
-      this.unSelectLink(link.id);
-      this.links.splice(link.index, 1);
-    },
-    rebuildLinks(nodes) {
-      if (!nodes) nodes = this.nodes;
-      let links = utils.rebuildLinks(nodes, this.links);
-      for (let link of links.removed) {
-        if (this.linksSelected[link.id]) {
-          delete this.linksSelected[link.id];
-        }
-      }
-      return links.newLinks;
-    },
-    removeNode(nodeId) {
-      utils.removeNode(nodeId, this.nodes, (nodes) => {
-        if (nodes) {
-          this.links = this.rebuildLinks(nodes);
-          this.unSelectNode(nodeId);
-          this.nodes = utils.rebuildNodes(this.links, nodes);
-        }
-      });
-    },
-    // -- Selection
-    selectNode(node) {
-      // this.selected[node.id] = node
-      if (this.lastSelected) {
-        this.lastSelected._color = "#c2edb9"; // normal color
-      }
-      this.lastSelected = node;
-      node._color = "#FFA500";
-    },
-    selectNodesLinks() {
-      for (let link of this.links) {
-        // node is selected
-        if (this.selected[link.sid] || this.selected[link.tid]) {
-          // this.selectLink(link)
-          // node is not selected
-        } else {
-          this.unSelectLink(link.id);
-        }
-      }
-    },
-    nodeClick(event, node) {
-      switch (this.tool) {
-        case "remove":
-          this.removeNode(node.id);
-          break;
-        case "parent":
-          this.createParent(node, "normal");
-          break;
-        case "and":
-          this.createParent(node, "and");
-          break;
-        case "or":
-          this.createParent(node, "or");
-          break;
-        default:
-          // selection tool
-          // is selected
-          if (this.selected[node.id]) {
-            this.unSelectNode(node.id);
-            // is not selected
-          } else {
-            if (this.hasFormUpdates) {
-              alert("Please submit changes before reselecting.");
-            } else {
-              // this.selectNode(node);
-            }
-          }
-          this.selectNodesLinks();
-          break;
-      }
-      this.updateSelection();
-    },
-    linkClick(event, link) {
-      if (this.tool === "remove") {
-        this.removeLink(link);
-      } else {
-        if (this.linksSelected[link.id]) {
-          this.unSelectLink(link.id);
-        } else {
-          this.selectLink(link);
-        }
-      }
-      this.updateSelection();
-    },
-    createParent(node, mode) {
-      let nodeId = this.lastNodeId + 1;
-      let linkId = this.lastLinkId + 1;
-      let nNode = utils.newNode(nodeId);
-      nNode.x = node.x + 50;
-      nNode.y = node.y + 50;
-      switch (mode) {
-        case "normal":
-          nNode.svgSym = rectSvg;
-          nNode.action = "None";
-          nNode._color = "#c2edb9";
-          break;
-        case "and":
-          nNode.action = "And";
-          nNode.name = "AND " + nNode.id;
-          nNode._color = "#add8e6";
-          break;
-        case "or":
-          nNode.action = "Or";
-          nNode.name = "OR " + nNode.id;
-          nNode._color = "#fed8b1";
-          break;
-        default:
-          nNode.svgSym = rectSvg;
-      }
-      nNode.name = null;
-      nNode.services = null;
-      nNode.firewall = null;
-      nNode.value = null;
-      nNode.properties = null;
-      nNode.owned_string = null;
-      nNode.vulnerabilities = [];
-      this.nodes = this.nodes.concat(nNode);
-      this.lastNodeId++;
-      this.links = this.links.concat(utils.newLink(linkId, node.id, nodeId));
-      this.lastLinkId++;
-    },
-    selectLink(link) {
-      this.$set(this.linksSelected, link.id, link);
-    },
-    selectionEvent(action, args) {
-      utils.methodCall(this, action, args);
-      this.updateSelection();
-    },
-    clearSelection() {
-      this.selected = {};
-      this.linksSelected = {};
-    },
-    unSelectNode(nodeId) {
-      if (this.selected[nodeId]) {
-        delete this.selected[nodeId];
-      }
-      this.selectNodesLinks();
-    },
-    unSelectLink(linkId) {
-      if (this.linksSelected[linkId]) {
-        delete this.linksSelected[linkId];
-      }
     },
     setShowMenu(show) {
       this.showMenu = show;
