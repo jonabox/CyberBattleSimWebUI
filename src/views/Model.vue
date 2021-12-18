@@ -4,7 +4,7 @@
     <v-container fluid>
       <v-row>
         <v-col>
-          <v-card-title> {{ tool }} mode</v-card-title>
+          <v-card-title class="text-capitalize"> {{ tool }} mode</v-card-title>
           <v-card outlined>
             <d3-network
               :net-nodes="nodes"
@@ -16,14 +16,12 @@
               @link-click="linkClick"
             ></d3-network>
             <v-card-actions>
-              <v-btn color="secondary" v-on:click="tool = 'parent'">
+              <v-btn color="secondary" @click="createParent()">
                 add node
               </v-btn>
-              <v-btn color="secondary" v-on:click="tool = 'remove'">
-                remove
-              </v-btn>
-              <v-btn color="secondary" v-on:click="tool = 'edit'"> edit </v-btn>
-              <v-spacer></v-spacer>
+              <v-btn color="secondary" @click="tool = 'remove'"> remove </v-btn>
+              <v-btn color="secondary" @click="tool = 'edit'"> edit </v-btn>
+              <v-spacer />
               <v-switch
                 color="secondary"
                 v-model="options.nodeLabels"
@@ -34,11 +32,12 @@
           </v-card>
         </v-col>
         <v-col>
-          <v-form v-model="valid" v-if="lastSelected">
-            <v-card-title>Editing: {{ lastSelected.name }}</v-card-title>
+          <v-form v-model="valid" v-if="lastSelectedNode">
+            <v-card-title>Editing: {{ lastSelectedNode.name }}</v-card-title>
             <v-tabs v-model="tab" background-color="transparent" grow>
               <v-tab>General</v-tab>
               <v-tab>Vulnerabilities</v-tab>
+              <v-tab>Services</v-tab>
               <v-tab>Firewall Rules</v-tab>
             </v-tabs>
             <v-tabs-items v-model="tab">
@@ -47,18 +46,17 @@
                   <v-row>
                     <v-col>
                       <v-text-field
-                        v-model="lastSelected.name"
+                        v-model="lastSelectedNode.name"
                         label="id"
                         :rules="[
                           (v) => !!v || 'Item is required',
-                          (v) => isINodeIdUnique(v) || 'node id already in use',
+                          (v) => isNodeIdUnique(v) || 'node id already in use',
                         ]"
-                        @change="hasFormUpdates = false"
-                        @input="(newNodeName) => handleNewNodeName(newNodeName)"
+                        @input="hasFormUpdates = true"
                       ></v-text-field>
 
                       <v-text-field
-                        v-model="lastSelected.value"
+                        v-model="lastSelectedNode.value"
                         label="value"
                         hint="Intrinsic value of the node (translates into a reward if the node gets owned)"
                         persistent-hint
@@ -68,35 +66,42 @@
                             (0 <= v && v <= 100) ||
                             'Value must range from 0 to 100',
                         ]"
-                        @change="hasFormUpdates = true"
-                      ></v-text-field>
-
-                      <v-text-field
-                        v-model="lastSelected.services"
-                        label="services"
-                        hint="List of port/protocol the node is listening to"
-                        :rules="[(v) => !!v || 'Item is required']"
-                        @change="hasFormUpdates = true"
-                        persistent-hint
+                        @input="hasFormUpdates = true"
                       ></v-text-field>
                     </v-col>
                     <v-col>
                       <v-text-field
-                        v-model="lastSelected.properties"
+                        v-model="lastSelectedNode.owned_string"
+                        label="owned string"
+                        hint="String displayed when the node gets owned"
+                        @input="hasFormUpdates = true"
+                        persistent-hint
+                      ></v-text-field>
+                      <v-switch
+                        color="secondary"
+                        v-model="lastSelectedNode.agent_installed"
+                        :label="`agent installed: ${lastSelectedNode.agent_installed.toString()}`"
+                        hint="Determines whether attacker agent is already installed on the node"
+                        @change="hasFormUpdates = true"
+                        persistent-hint
+                      ></v-switch>
+                    </v-col>
+                  </v-row>
+                  <v-row>
+                    <v-col>
+                      <v-combobox
+                        v-model="lastSelectedNode.properties"
                         label="properties"
                         hint="Properties of the nodes, some of which can imply further vulnerabilities"
                         :rules="[(v) => !!v || 'Item is required']"
-                        @change="hasFormUpdates = true"
+                        :append-icon="null"
+                        :delimiters="[',']"
+                        @input="hasFormUpdates = true"
                         persistent-hint
-                      ></v-text-field>
-
-                      <v-text-field
-                        v-model="lastSelected.owned_string"
-                        label="owned string"
-                        hint="String displayed when the node gets owned"
-                        @change="hasFormUpdates = true"
-                        persistent-hint
-                      ></v-text-field>
+                        multiple
+                        chips
+                        deletable-chips
+                      ></v-combobox>
                     </v-col>
                   </v-row>
                 </v-container>
@@ -104,17 +109,18 @@
               <v-tab-item>
                 <v-container>
                   <v-card-title
-                    >{{ lastSelected.name }} has {{ vulnerabilityString }}
+                    >{{ lastSelectedNode.name }} has {{ vulnerabilityString }}
                   </v-card-title>
                   <v-select
+                    v-if="Object.keys(lastSelectedNode.vulnerabilities).length"
                     v-model="selectedVulnerability"
                     label="choose a vulnerability to edit"
-                    :items="Object.values(lastSelected.vulnerabilities)"
-                    @change="selectedCredential = null"
+                    :items="Object.values(lastSelectedNode.vulnerabilities)"
+                    @input="selectedCredential = null"
                     item-text="id"
                     return-object
                   ></v-select>
-                  <div v-if="selectedVulnerability">
+                  <template v-if="selectedVulnerability">
                     <v-row>
                       <v-col>
                         <v-text-field
@@ -126,14 +132,7 @@
                               isVulnerabilityIdUnique(v) ||
                               'vulnerability id already in use',
                           ]"
-                          @change="hasFormUpdates = true"
-                        ></v-text-field>
-                        <v-text-field
-                          v-model="selectedVulnerability.description"
-                          label="vulnerability description"
-                          hint="an optional description of what the vulnerability is"
-                          @change="hasFormUpdates = true"
-                          persistent-hint
+                          @input="hasFormUpdates = true"
                         ></v-text-field>
                       </v-col>
                       <v-col>
@@ -142,44 +141,100 @@
                           label="vulnerability type"
                           :items="vulnerabilityTypes"
                           :rules="[(v) => !!v || 'Item is required']"
-                          @change="hasFormUpdates = true"
+                          @input="hasFormUpdates = true"
                         ></v-select>
                       </v-col>
-                      <!-- <v-col>
-                TODO: ADD SUPPORT FOR ADVANCED VULNERABILITY FEATURES
-                <v-text-field
-                  v-model="vulnerability[3]"
-                  label="vulnerability precondition"
-                  
-                ></v-text-field>
-                <v-text-field
-                  v-model="vulnerability[4]"
-                  label="vulnerability rates"
-                  @change="hasFormUpdates = true"
-                 
-                ></v-text-field>
-
-                <v-text-field
-                  v-model="vulnerability[5]"
-                  label="vulnerability URL"
-                  @change="hasFormUpdates = true"
-                  
-                 
-                ></v-text-field>
-
-                <v-text-field
-                  v-model="vulnerability[6]"
-                  label="vulnerability reward string"
-                  @change="hasFormUpdates = true"
-                  
-                 
-                ></v-text-field> -->
-                      <!-- </v-col> -->
+                      <v-col>
+                        <v-text-field
+                          v-model="selectedVulnerability.cost"
+                          label="vulnerability cost"
+                          hint="cost associated with exploiting this vulnerability"
+                          :rules="numberRules"
+                          @input="hasFormUpdates = true"
+                          persistent-hint
+                        ></v-text-field>
+                      </v-col>
+                      <v-col>
+                        <v-text-field
+                          v-model="selectedVulnerability.precondition"
+                          label="precondition"
+                          hint="Condition under which a given feature or vulnerability is present"
+                          @input="hasFormUpdates = true"
+                          persistent-hint
+                        ></v-text-field>
+                      </v-col>
+                    </v-row>
+                    <v-row>
+                      <v-col>
+                        <v-text-field
+                          v-model="
+                            selectedVulnerability.rates.probingDetectionRate
+                          "
+                          label="Probing Detection Rate"
+                          :rules="rateRules"
+                          @input="hasFormUpdates = true"
+                          persistent-hint
+                        >
+                        </v-text-field
+                      ></v-col>
+                      <v-col>
+                        <v-text-field
+                          v-model="
+                            selectedVulnerability.rates.exploitDetectionRate
+                          "
+                          :rules="rateRules"
+                          label="Exploit Detection Rate"
+                          @input="hasFormUpdates = true"
+                          persistent-hint
+                        ></v-text-field
+                      ></v-col>
+                      <v-col>
+                        <v-text-field
+                          v-model="selectedVulnerability.rates.successRate"
+                          :rules="rateRules"
+                          label="Success Rate"
+                          @input="hasFormUpdates = true"
+                          persistent-hint
+                        ></v-text-field
+                      ></v-col>
+                    </v-row>
+                    <v-row>
+                      <v-col>
+                        <v-text-field
+                          v-model="selectedVulnerability.description"
+                          label="vulnerability description"
+                          hint="an optional description of what the vulnerability is"
+                          @input="hasFormUpdates = true"
+                          persistent-hint
+                        ></v-text-field>
+                      </v-col>
+                    </v-row>
+                    <v-row>
+                      <v-col>
+                        <v-text-field
+                          v-model="selectedVulnerability.reward_string"
+                          label="vulnerability reward string"
+                          hint="rates of success/failure associated with this vulnerability"
+                          @input="hasFormUpdates = true"
+                          persistent-hint
+                        ></v-text-field>
+                      </v-col>
+                    </v-row>
+                    <v-row>
+                      <v-col>
+                        <v-text-field
+                          v-model="selectedVulnerability.URL"
+                          label="vulnerability URL"
+                          hint="optional link pointing to information about the vulnerability"
+                          @input="hasFormUpdates = true"
+                          persistent-hint
+                        ></v-text-field>
+                      </v-col>
                     </v-row>
                     <v-card-title>
                       {{ selectedVulnerability.id + " " + outcomeString }}
                     </v-card-title>
-                    <div
+                    <template
                       v-if="Object.keys(selectedVulnerability.outcome).length"
                     >
                       <v-select
@@ -187,15 +242,16 @@
                         v-model="selectedVulnerability.outcome.nodes"
                         label="vulnerability outcomes"
                         hint="What nodes will be discovered if vulnerability is exploited"
-                        :items="getPotentialOutcomes(lastSelected.name)"
+                        :items="getPotentialOutcomes(lastSelectedNode.name)"
                         @input="
-                          (selection) =>
+                          (selection) => {
                             updateEdges(
                               selection,
                               selectedVulnerability.outcome.nodes_copy
-                            )
+                            );
+                            hasFormUpdates = true;
+                          }
                         "
-                        @change="hasFormUpdates = true"
                         multiple
                         small-chips
                         deletable-chips
@@ -224,7 +280,7 @@
                                   v-model="selectedCredential.credential"
                                   label="credential"
                                   hint="exposed credential id"
-                                  @change="hasFormUpdates = true"
+                                  @input="hasFormUpdates = true"
                                   persistent-hint
                                 ></v-text-field>
                               </v-col>
@@ -235,16 +291,17 @@
                                   hint="node id"
                                   :rules="[(v) => !!v || 'Item is required']"
                                   :items="
-                                    getPotentialOutcomes(lastSelected.name)
+                                    getPotentialOutcomes(lastSelectedNode.name)
                                   "
                                   @input="
-                                    (selection) =>
+                                    (selection) => {
                                       updateEdges(
                                         [selection],
                                         selectedCredential.node_copy
-                                      )
+                                      );
+                                      hasFormUpdates = true;
+                                    }
                                   "
-                                  @change="hasFormUpdates = true"
                                   persistent-hint
                                 ></v-select
                               ></v-col>
@@ -254,7 +311,7 @@
                                   label="port"
                                   hint="A port name"
                                   :rules="[(v) => !!v || 'Item is required']"
-                                  @change="hasFormUpdates = true"
+                                  @input="hasFormUpdates = true"
                                   persistent-hint
                                 ></v-text-field>
                               </v-col>
@@ -272,50 +329,133 @@
                       </div>
                       <v-btn
                         v-if="selectedVulnerability"
-                        class="my-2"
+                        class="my-2 mb-4"
                         @click="removeOutcome()"
                       >
                         remove outcome
                       </v-btn>
-                    </div>
+                    </template>
 
                     <v-select
                       v-else
                       v-model="selectedOutcomeType"
                       label="select new outcome type"
                       :items="outcomeTypes"
-                      @input="createOutcome()"
-                      @change="hasFormUpdates = true"
+                      :rules="[(v) => !!v || 'Item is required']"
+                      @input="
+                        {
+                          createOutcome();
+                          hasFormUpdates = true;
+                        }
+                      "
                       persistent-hint
                     >
                     </v-select>
-                  </div>
+                  </template>
                   <v-divider class="mb-4" />
                   <v-btn class="mr-2" @click="addVulnerability()"
                     >add new vulnerability</v-btn
                   >
-                  <v-btn @click="removeLastVulnerability()">
+                  <v-btn
+                    v-if="selectedVulnerability"
+                    @click="removeVulnerability()"
+                  >
                     remove vulnerability
                   </v-btn>
                 </v-container>
               </v-tab-item>
               <v-tab-item>
-                <v-container>
+                <v-container fluid>
+                  <v-row>
+                    <v-card-title> Services: </v-card-title>
+                  </v-row>
+                  <v-row
+                    v-for="(service, serviceIndex) in lastSelectedNode.services"
+                    v-bind:key="serviceIndex"
+                  >
+                    <v-container fluid>
+                      <v-row>
+                        <v-col>
+                          <v-text-field
+                            v-model="service.name"
+                            label="service name"
+                            :rules="[(v) => !!v || 'Item is required']"
+                            hint="Name of the port the service is listening to"
+                            persistent-hint
+                            @input="hasFormUpdates = true"
+                          ></v-text-field
+                        ></v-col>
+                        <v-col>
+                          <v-switch
+                            color="secondary"
+                            v-model="service.running"
+                            :label="`running: ${service.running.toString()}`"
+                            hint="whether the service is running or stopped"
+                            @change="hasFormUpdates = true"
+                            persistent-hint
+                          ></v-switch>
+                        </v-col>
+                      </v-row>
+                      <v-row>
+                        <v-col>
+                          <v-combobox
+                            v-model="service.allowedCredentials"
+                            label="properties"
+                            hint="Credentials allowed to authenticate with the service"
+                            :search-input.sync="search"
+                            :items="credentialOptions"
+                            :delimiters="[',']"
+                            @input="hasFormUpdates = true"
+                            persistent-hint
+                            multiple
+                            small-chips
+                            deletable-chips
+                            ><template v-slot:no-data>
+                              <v-list-item>
+                                <v-list-item-content>
+                                  <v-list-item-title>
+                                    Press <kbd>enter</kbd> to create "<strong>{{
+                                      search
+                                    }}</strong
+                                    >"
+                                  </v-list-item-title>
+                                </v-list-item-content>
+                              </v-list-item>
+                            </template></v-combobox
+                          >
+                        </v-col>
+                        <v-col>
+                          <v-btn @click="removeService(serviceIndex)">
+                            delete service
+                          </v-btn>
+                        </v-col>
+                      </v-row>
+                      <v-divider />
+                    </v-container>
+                  </v-row>
+                  <v-row>
+                    <v-col>
+                      <v-btn class="mr-2" @click="addService()">
+                        Add Service
+                      </v-btn>
+                    </v-col>
+                  </v-row>
+                </v-container>
+              </v-tab-item>
+              <v-tab-item>
+                <v-container fluid>
                   <v-row>
                     <v-col
-                      v-for="(rules, groupName) in lastSelected.firewall"
+                      v-for="(rules, groupName) in lastSelectedNode.firewall"
                       v-bind:key="groupName"
                     >
-                      <!-- capitalize first letter of group name -->
-                      <v-card-title>
-                        {{
-                          groupName.charAt(0).toUpperCase() + groupName.slice(1)
-                        }}
+                      <v-card-title class="text-capitalize text-break">
+                        {{ groupName }}
                         Firewall Rules:
                       </v-card-title>
                       <v-row
-                        v-for="(firewall, index) in rules"
-                        v-bind:key="index"
+                        v-for="(firewall, ruleIndex) in rules"
+                        v-bind:key="ruleIndex"
                       >
                         <v-col>
                           <v-row>
@@ -326,7 +466,7 @@
                                 :rules="[(v) => !!v || 'Item is required']"
                                 hint="A port name"
                                 persistent-hint
-                                @change="hasFormUpdates = true"
+                                @input="hasFormUpdates = true"
                               ></v-text-field
                             ></v-col>
                             <v-col
@@ -336,7 +476,7 @@
                                 hint="Determines if a rule is blocks or allows traffic"
                                 :items="['ALLOW', 'BLOCK']"
                                 :rules="[(v) => !!v || 'Item is required']"
-                                @change="hasFormUpdates = true"
+                                @input="hasFormUpdates = true"
                                 persistent-hint
                               ></v-select>
                             </v-col>
@@ -345,13 +485,27 @@
                                 v-model="firewall.reason"
                                 label="reason"
                                 hint="An optional reason for the block/allow rule"
-                                @change="hasFormUpdates = true"
+                                @input="hasFormUpdates = true"
                                 persistent-hint
                               ></v-text-field>
+                            </v-col>
+                            <v-col>
+                              <v-btn
+                                @click="
+                                  removeFirewallRule(ruleIndex, groupName)
+                                "
+                              >
+                                delete
+                              </v-btn>
                             </v-col>
                           </v-row>
                         </v-col>
                       </v-row>
+                      <v-btn class="mr-2" @click="addFirewallRule(groupName)">
+                        Add
+                        {{ groupName }}
+                        Rule
+                      </v-btn>
                     </v-col>
                   </v-row>
                 </v-container>
@@ -404,6 +558,7 @@ export default {
   data() {
     return {
       tab: null,
+      search: null,
       //
       selectedVulnerability: null,
       selectedCredential: null,
@@ -419,6 +574,7 @@ export default {
         "LateralMove",
         "ExploitFailed",
       ],
+      credentialOptions: [],
       //
       tool: "edit",
       lastNodeId: 0,
@@ -428,27 +584,17 @@ export default {
         maxNodes: 150,
       },
       showHint: true,
-      toaster: null,
       svgChoice: false,
       toSvg: false,
       nodeSym: null,
       selected: {},
-      lastSelected: null,
+      lastSelectedNode: null,
       showSelection: true,
       showMenu: true,
       linksSelected: {},
       hasFormUpdates: false,
       // Interface Components
       valid: false,
-      nameRules: [
-        (v) => !!v || "Name is required",
-        (v) => (v && v.length <= 10) || "Name must be less than 10 characters",
-      ],
-      email: "",
-      emailRules: [
-        (v) => !!v || "E-mail is required",
-        (v) => /.+@.+\..+/.test(v) || "E-mail must be valid",
-      ],
       // Graph Components
       nodes: [],
       links: [],
@@ -462,6 +608,14 @@ export default {
 
         checkbox: false,
       },
+      rateRules: [
+        (v) => v === 0 || !!v || "Probability is required",
+        (v) => (0 <= v && v <= 1) || "Probability must range from 0 to 1",
+      ],
+      numberRules: [
+        (v) => v === 0 || !!v || "item is required",
+        (v) => !isNaN(v) || "item must be a number",
+      ],
     };
   },
   created: function () {
@@ -469,9 +623,9 @@ export default {
   },
   computed: {
     vulnerabilityString() {
-      if (this.lastSelected.vulnerabilities) {
+      if (this.lastSelectedNode.vulnerabilities) {
         let vulnerabilityCount = Object.keys(
-          this.lastSelected.vulnerabilities
+          this.lastSelectedNode.vulnerabilities
         ).length;
         if (vulnerabilityCount == 1) {
           return "1 vulnerability";
@@ -510,19 +664,17 @@ export default {
     // reference(array): nodes already in graph model
     // adds and removes edges in graph to update graph model
     updateEdges(selection, reference) {
-      console.log(selection);
-      console.log(reference);
       let toAdd = selection.filter((x) => !reference.includes(x));
       let toRemove = reference.filter((x) => !selection.includes(x));
       for (let nodeId of toAdd) {
         // check if edge is already added
         let edgeToAdd = this.links.find(
-          (edge) => edge.sid == this.lastSelected.name && edge.tid == nodeId
+          (edge) => edge.sid == this.lastSelectedNode.name && edge.tid == nodeId
         );
         // if not, create new edge and add it to graph
         if (!edgeToAdd) {
           edgeToAdd = {
-            sid: this.lastSelected.name,
+            sid: this.lastSelectedNode.name,
             tid: nodeId,
           };
           this.links.push(edgeToAdd);
@@ -533,7 +685,7 @@ export default {
       for (let nodeId of toRemove) {
         // check if edge exists
         let edgeToRemove = this.links.find(
-          (edge) => edge.sid == this.lastSelected.name && edge.tid == nodeId
+          (edge) => edge.sid == this.lastSelectedNode.name && edge.tid == nodeId
         );
         if (edgeToRemove) {
           this.$set(edgeToRemove, "_color", removedEdgeColor);
@@ -542,7 +694,7 @@ export default {
       }
     },
     handleNewNodeName(newName) {
-      let oldName = this.lastSelected.tempName;
+      let oldName = this.lastSelectedNode.serverId;
       for (let node of this.nodes) {
         for (let vulnerability of Object.values(node.vulnerabilities)) {
           // change name in outcome nodes
@@ -565,18 +717,19 @@ export default {
           }
         }
       }
-      this.lastSelected.tempName = newName;
+      this.lastSelectedNode.serverId = newName;
     },
-    isINodeIdUnique(id) {
+    isNodeIdUnique(id) {
       // returns whether there is a duplicate id in nodes
-      // indeces are only equal if there is at most one id
-      let ids = this.nodes.map((item) => item.id);
-      return ids.indexOf(id) == ids.lastIndexOf(id);
+      return (
+        this.lastSelectedNode.serverId == id ||
+        this.nodes.every((item) => item.id != id)
+      );
     },
     isVulnerabilityIdUnique(id) {
       // returns whether there is a duplicate id in vulnerabilities
       // indeces are only equal if there is at most one id
-      let ids = Object.keys(this.lastSelected.vulnerabilities);
+      let ids = Object.keys(this.lastSelectedNode.vulnerabilities);
       return ids.indexOf(id) == ids.lastIndexOf(id);
     },
     getPotentialOutcomes(id) {
@@ -587,7 +740,7 @@ export default {
     },
     getGraphData() {
       axios
-        .get("http://localhost:5000/api/get_nodes")
+        .get("/api/get_nodes")
         .then((response) => {
           console.log("Success!");
           let nodes = response.data;
@@ -596,10 +749,9 @@ export default {
             this.nodes.push({
               id: nodeId,
               name: nodeId, // front-facing value
-              tempName: nodeId, // temporary value to handle name changes
               serverId: nodeId, // server reference
-              // TODO: add agenet installed
               services: node["services"],
+              agent_installed: node["agent_installed"],
               firewall: node["firewall"],
               value: node["value"],
               properties: node["properties"],
@@ -634,6 +786,8 @@ export default {
                   this.links.push({ sid: nodeId, tid: credential.node });
                   // assign copy for reference (array enables compatibility with updateEdges)
                   this.$set(credential, "node_copy", [credential.node]);
+                  // push credential id to services options
+                  this.credentialOptions.push(credential.credential);
                 }
               }
               this.$set(vulnerability, "id", vulnerabilityId);
@@ -645,7 +799,6 @@ export default {
             // select the first added node
             this.selectNode(this.nodes[0]);
           }
-          console.log(this.nodes);
         })
         .catch((error) => {
           console.log({ error });
@@ -655,10 +808,10 @@ export default {
 
     updateNode() {
       let formData = new FormData();
-      let jsonData = JSON.stringify(this.lastSelected);
+      let jsonData = JSON.stringify(this.lastSelectedNode);
       formData.append("updatedNode", jsonData);
       axios
-        .post("http://localhost:5000/api/change_value", formData)
+        .post("/api/change_value", formData)
         .then((response) => {
           this.hasFormUpdates = false;
           console.log(response);
@@ -671,10 +824,12 @@ export default {
     },
 
     finalizeNodeUpdate() {
+      // handle node name update
+      this.handleNewNodeName(this.lastSelectedNode.name);
+
       //re-cache server IDs
-      this.lastSelected.serverId = this.lastSelected.name;
       for (let vulnerability of Object.values(
-        this.lastSelected.vulnerabilities
+        this.lastSelectedNode.vulnerabilities
       )) {
         vulnerability.serverId = vulnerability.id;
       }
@@ -689,46 +844,57 @@ export default {
     },
 
     addVulnerability() {
-      let uuid = uuidv4();
-      console.log(uuid);
+      let vulnerabilityId = uuidv4();
       let newVulnerability = {
-        id: uuid,
-        serverId: uuid,
+        id: vulnerabilityId,
+        serverId: vulnerabilityId,
         description: null,
         type: null,
         outcome: {},
-        precondition: "true",
+        precondition: null,
         rates: [0, 0, 0],
         URL: "",
         cost: 0,
         reward_string: "",
       };
-      this.$set(this.lastSelected.vulnerabilities, uuid, newVulnerability);
+      this.$set(
+        this.lastSelectedNode.vulnerabilities,
+        vulnerabilityId,
+        newVulnerability
+      );
       this.selectedVulnerability = newVulnerability;
       this.selectedOutcomeType = null;
       this.hasFormUpdates = true;
     },
-    removeLastVulnerability() {
-      this.lastSelected.vulnerabilities.pop();
+    removeVulnerability() {
+      // remove outcome associated with vulnerability first
+      this.removeOutcome();
+      // remove vulnerability from vulnerabilities
+      this.$delete(
+        this.lastSelectedNode.vulnerabilities,
+        this.selectedVulnerability.serverId
+      );
+      this.selectedVulnerability = null;
+      this.hasFormUpdates = true;
     },
     addCredential() {
-      let uuid = uuidv4();
+      let credentialId = uuidv4();
       let newCredential = {
-        credential: uuid,
+        credential: credentialId,
         node: null,
         node_copy: [],
         port: null,
       };
       let outcome = this.selectedVulnerability.outcome;
       // assign empty list to credentials properity if nonexistent
-      console.log("outcome");
-      console.log(outcome);
-      console.log("outcome");
       if (!outcome.credentials) {
         this.$set(outcome, "credentials", []);
       }
       outcome.credentials.push(newCredential);
       this.selectedCredential = newCredential;
+      // push credential id to services options
+      this.credentialOptions.push(credentialId);
+      this.hasFormUpdates = true;
     },
 
     removeCredential() {
@@ -737,6 +903,7 @@ export default {
       credentials.splice(credentials.indexOf(credentialToRemove), 1);
       this.updateEdges([], this.selectedCredential.node_copy);
       this.selectedCredential = null;
+      this.hasFormUpdates = true;
     },
 
     createOutcome() {
@@ -752,7 +919,7 @@ export default {
           this.$set(this.selectedVulnerability.outcome, "customer_data", {});
           break;
         default:
-          console.log(this.selectedOutcomeType + " not supported");
+          alert.log(this.selectedOutcomeType + " not yet supported");
       }
     },
 
@@ -767,6 +934,37 @@ export default {
       // assign outcome property to empty object
       this.$set(this.selectedVulnerability, "outcome", {});
       this.selectedOutcomeType = null;
+      this.hasFormUpdates = true;
+    },
+
+    addFirewallRule(groupName) {
+      let newFireWallRule = {
+        port: null,
+        permission: null,
+        reason: null,
+      };
+      this.lastSelectedNode.firewall[groupName].push(newFireWallRule);
+      this.hasFormUpdates = true;
+    },
+
+    removeFirewallRule(ruleIndex, groupName) {
+      this.lastSelectedNode.firewall[groupName].splice(ruleIndex, 1);
+      this.hasFormUpdates = true;
+    },
+
+    addService() {
+      let newService = {
+        name: null,
+        allowedCredentials: null,
+        running: true,
+      };
+      this.lastSelectedNode.services.push(newService);
+      this.hasFormUpdates = true;
+    },
+
+    removeService(serviceIndex) {
+      this.lastSelectedNode.services.splice(serviceIndex, 1);
+      this.hasFormUpdates = true;
     },
 
     linkCb(link) {
@@ -799,20 +997,39 @@ export default {
       return links.newLinks;
     },
     removeNode(nodeId) {
-      utils.removeNode(nodeId, this.nodes, (nodes) => {
-        if (nodes) {
-          this.links = this.rebuildLinks(nodes);
-          this.unSelectNode(nodeId);
-          this.nodes = utils.rebuildNodes(this.links, nodes);
-        }
-      });
+      let formData = new FormData();
+      formData.append("nodeToRemove", nodeId);
+      axios
+        .post("/api/remove_node", formData)
+        .then((response) => {
+          this.hasFormUpdates = false;
+          console.log(response);
+          // remove node from graph
+          utils.removeNode(nodeId, this.nodes, (nodes) => {
+            if (nodes) {
+              this.links = this.rebuildLinks(nodes);
+              this.unSelectNode(nodeId);
+              // this.nodes = utils.rebuildNodes(this.links, nodes);
+            }
+          });
+          // select the first node
+          if (this.nodes.length) {
+            this.selectNode(this.nodes[0]);
+          } else {
+            this.lastSelectedNode = null;
+          }
+        })
+        .catch((error) => {
+          console.log({ error });
+          alert(error.response.data);
+        });
     },
     // -- Selection
     selectNode(node) {
-      if (this.lastSelected) {
-        this.lastSelected._color = defaultNodeColor; // normal color
+      if (this.lastSelectedNode) {
+        this.lastSelectedNode._color = defaultNodeColor; // normal color
       }
-      this.lastSelected = node;
+      this.lastSelectedNode = node;
       this.selectedVulnerability = null;
       this.selectedCredential = null;
       node._color = selectedNodeColor;
@@ -829,35 +1046,26 @@ export default {
       }
     },
     nodeClick(event, node) {
-      switch (this.tool) {
-        case "remove":
-          this.removeNode(node.id);
-          break;
-        case "parent":
-          this.createParent(node, "normal");
-          break;
-        case "and":
-          this.createParent(node, "and");
-          break;
-        case "or":
-          this.createParent(node, "or");
-          break;
-        default:
-          // selection tool
-          // is selected
-          if (this.selected[node.id]) {
-            this.unSelectNode(node.id);
-            // is not selected
-          } else {
-            if (this.hasFormUpdates) {
-              alert("Please submit changes before reselecting.");
+      if (this.hasFormUpdates) {
+        alert("Please submit changes before reselecting.");
+      } else {
+        switch (this.tool) {
+          case "remove":
+            this.removeNode(node.id);
+            break;
+          default:
+            // selection tool
+            if (this.selected[node.id]) {
+              this.unSelectNode(node.id);
+              // is not selected
             } else {
               this.selectNode(node);
             }
-          }
-          this.selectNodesLinks();
-          break;
+            this.selectNodesLinks();
+            break;
+        }
       }
+
       this.updateSelection();
     },
     linkClick(event, link) {
@@ -872,42 +1080,36 @@ export default {
       }
       this.updateSelection();
     },
-    createParent(node, mode) {
-      let nodeId = this.lastNodeId + 1;
-      let linkId = this.lastLinkId + 1;
-      let nNode = utils.newNode(nodeId);
-      nNode.x = node.x + 50;
-      nNode.y = node.y + 50;
-      switch (mode) {
-        case "normal":
-          nNode.svgSym = rectSvg;
-          nNode.action = "None";
-          nNode._color = defaultNodeColor;
-          break;
-        case "and":
-          nNode.action = "And";
-          nNode.name = "AND " + nNode.id;
-          nNode._color = "#add8e6";
-          break;
-        case "or":
-          nNode.action = "Or";
-          nNode.name = "OR " + nNode.id;
-          nNode._color = "#fed8b1";
-          break;
-        default:
-          nNode.svgSym = rectSvg;
+    createParent() {
+      if (this.hasFormUpdates) {
+        alert("Please submit changes before reselecting.");
+      } else {
+        let nodeId = uuidv4();
+        let newNode = {
+          id: nodeId,
+          name: nodeId, // front-facing value
+          serverId: nodeId, // server reference
+          services: [],
+          agent_installed: false,
+          firewall: { incoming: [], outgoing: [] },
+          value: 0,
+          properties: [],
+          owned_string: null,
+          vulnerabilities: {},
+          reimagable: true,
+          sla_weight: 1,
+          _color: defaultNodeColor,
+          svgSym: rectSvg,
+          action: "None",
+          // outcome (edge) modification
+          outcomesToAdd: [],
+          outcomesToRemove: [],
+        };
+        this.nodes.push(newNode);
+        this.lastNodeId++;
+        this.selectNode(newNode);
+        this.hasFormUpdates = true;
       }
-      nNode.name = null;
-      nNode.services = null;
-      nNode.firewall = null;
-      nNode.value = null;
-      nNode.properties = null;
-      nNode.owned_string = null;
-      nNode.vulnerabilities = [];
-      this.nodes = this.nodes.concat(nNode);
-      this.lastNodeId++;
-      this.links = this.links.concat(utils.newLink(linkId, node.id, nodeId));
-      this.lastLinkId++;
     },
     selectLink(link) {
       this.$set(this.linksSelected, link.id, link);
