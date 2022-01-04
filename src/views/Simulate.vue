@@ -3,16 +3,13 @@
     <v-container fluid>
       <v-row>
         <v-col>
-          <v-card class="mb-4">
+          <v-card class="mb-4" v-if="cachedRewards">
             <v-card-title v-text="'Total Reward: ' + reward" />
             <v-sparkline
-              v-if="cachedRewards"
               :value="cachedRewards"
               :labels="cachedRewards"
               :label-size="labelSize"
-              :auto-draw-duration="graphAnimationDuration"
               color="black"
-              auto-draw
               stroke-linecap="round"
               line-width="2"
               height="50"
@@ -40,36 +37,25 @@
         </v-col>
         <v-col>
           <v-card class="mb-4">
-            <v-card-title> Actions </v-card-title>
-            <template v-if="selectedAttack">
-              <v-card-actions>
-                <v-select
-                  v-model="selectedAttack"
-                  label="choose a target node"
-                  :items="Array.from(attackMap.values())"
-                  item-text="id"
-                  return-object
-                ></v-select>
-              </v-card-actions>
-              <v-card-title>
-                {{ selectedAttack.id + " vulnerabilities" }}
-              </v-card-title>
+            <template v-if="selectedNode">
+              <v-card-title> Actions for {{ selectedNode.id }} </v-card-title>
               <v-card-subtitle>
-                {{ "status: " + selectedAttack.status }}
+                {{ "status: " + selectedNode.status }}
               </v-card-subtitle>
               <v-chip
-                v-for="(property, propertyIndex) in selectedAttack.properties"
+                v-for="(property, propertyIndex) in selectedNode.properties"
                 v-bind:key="propertyIndex"
                 v-text="property"
-                class="mx-4"
+                class="mb-3 ml-2"
               />
-              <v-list>
-                <template v-if="selectedAttack.local_attacks.length">
-                  <v-subheader>Local Attacks:</v-subheader>
+              <template v-if="selectedNode.local_attacks.length">
+                <v-divider />
+                <v-card-subtitle class="pb-0">Local Attacks:</v-card-subtitle>
+                <v-list class="py-0">
                   <v-list-item
                     v-for="(
                       attack, attackIndex
-                    ) in selectedAttack.local_attacks"
+                    ) in selectedNode.local_attacks"
                     v-bind:key="attackIndex"
                   >
                     <v-list-item-content>
@@ -88,14 +74,17 @@
                       </v-btn>
                     </v-list-item-action>
                   </v-list-item>
-                </template>
-                <template v-if="selectedAttack.remote_attacks.length">
-                  <v-subheader> Remote Attacks: </v-subheader>
+                </v-list>
+              </template>
+              <template v-if="selectedNode.remote_attacks.length">
+                <v-divider />
+                <v-card-subtitle class="pb-0">Remote Attacks:</v-card-subtitle>
+                <v-list class="py-0">
                   <v-list-item
                     v-for="(
                       attack, attackIndex
-                    ) in selectedAttack.remote_attacks"
-                    :key="attackIndex"
+                    ) in selectedNode.remote_attacks"
+                    v-bind:key="attackIndex"
                   >
                     <v-list-item-content>
                       <v-list-item-title>
@@ -106,7 +95,7 @@
                     <v-list-item-action>
                       <v-btn
                         color="green lighten-2"
-                        :disabled="!selectedAttackSourceNode"
+                        :disabled="!selectedNodeSourceNode"
                         @click="runAttack(attack, 'remote_attacks')"
                       >
                         Exploit
@@ -116,66 +105,97 @@
                   </v-list-item>
                   <v-list-item>
                     <v-select
-                      v-model="selectedAttackSourceNode"
-                      label="source node for remote attack"
+                      v-model="selectedNodeSourceNode"
+                      label="remote attack origin"
                       :items="Array.from(ownedNodes)"
                       return-object
                     ></v-select>
                   </v-list-item>
-                </template>
-              </v-list>
+                </v-list>
+              </template>
+              <template v-if="gatheredCredentials.length">
+                <v-divider />
+                <v-card-subtitle class="pb-0"
+                  >Connect to {{ selectedNode.id }}:</v-card-subtitle
+                >
+                <v-list class="py-0">
+                  <v-list-item>
+                    <v-list-item-content>
+                      <v-select
+                        v-model="selectedConnectSourceNode"
+                        label="source"
+                        :items="Array.from(ownedNodes)"
+                        return-object
+                        class="pr-2"
+                      ></v-select>
+                    </v-list-item-content>
+                    <v-list-item-content>
+                      <v-select
+                        v-model="selectedPort"
+                        label="port"
+                        :items="supportedPorts"
+                        return-object
+                        class="pr-2"
+                      ></v-select>
+                    </v-list-item-content>
+                    <v-list-item-content>
+                      <v-select
+                        v-model="selectedCredential"
+                        label="credential"
+                        :items="gatheredCredentials"
+                        item-text="credential"
+                        return-object
+                      ></v-select>
+                    </v-list-item-content>
+
+                    <v-list-item-action>
+                      <v-btn
+                        color="green lighten-2"
+                        :disabled="
+                          !selectedConnectSourceNode ||
+                          !selectedPort ||
+                          !selectedCredential
+                        "
+                        @click="connectAndInfect()"
+                      >
+                        connect
+                        <v-icon right dark> mdi-lock-open </v-icon>
+                      </v-btn>
+                    </v-list-item-action>
+                  </v-list-item>
+                </v-list>
+              </template>
             </template>
+            <v-card-title v-else> No node selected </v-card-title>
           </v-card>
           <v-card max-height="40rem">
             <v-card-title> Credentials </v-card-title>
-            <template v-if="gatheredCredentials.length">
-              <v-simple-table>
-                <template>
-                  <thead>
-                    <tr>
-                      <th class="text-left">Node ID</th>
-                      <th class="text-left">Port</th>
-                      <th class="text-left">Credential</th>
-                      <th class="text-left">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr
-                      v-for="credential in gatheredCredentials"
-                      :key="credential.credential"
-                    >
-                      <td>{{ credential.node }}</td>
-                      <td>{{ credential.port }}</td>
-                      <td>{{ credential.credential }}</td>
-                      <td>
-                        <v-btn
-                          color="green lighten-2"
-                          small
-                          :disabled="!selectedInfectSourceNode"
-                          @click="connectAndInfect(credential)"
-                        >
-                          connect
-                          <v-icon right dark> mdi-lock-open </v-icon>
-                        </v-btn>
-                      </td>
-                    </tr>
-                  </tbody>
-                </template>
-              </v-simple-table>
-              <v-card-actions>
-                <v-select
-                  v-model="selectedInfectSourceNode"
-                  label="source node for connection"
-                  :items="Array.from(ownedNodes)"
-                  return-object
-                ></v-select>
-              </v-card-actions>
-            </template>
+            <v-simple-table v-if="gatheredCredentials.length">
+              <template>
+                <thead>
+                  <tr>
+                    <th class="text-left">Node ID</th>
+                    <th class="text-left">Port</th>
+                    <th class="text-left">Credential</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="credential in gatheredCredentials"
+                    :key="credential.credential"
+                  >
+                    <td>{{ credential.node }}</td>
+                    <td>{{ credential.port }}</td>
+                    <td>{{ credential.credential }}</td>
+                  </tr>
+                </tbody>
+              </template>
+            </v-simple-table>
           </v-card>
         </v-col>
         <v-col>
           <v-card class="overflow-y-auto" max-height="50rem">
-            <v-card-title> Logs </v-card-title>
+            <v-card-title class="text-no-wrap"> Logs </v-card-title>
             <v-list two-line v-if="logs.length">
               <div v-for="log in logs" v-bind:key="log.time">
                 <v-divider />
@@ -230,9 +250,11 @@ export default {
   data() {
     return {
       //
-      selectedAttack: null,
-      selectedAttackSourceNode: null,
-      selectedInfectSourceNode: null,
+      selectedNode: null,
+      selectedNodeSourceNode: null,
+      selectedConnectSourceNode: null,
+      selectedPort: null,
+      selectedCredential: null,
       //
       reward: 0,
       cachedRewards: null,
@@ -244,6 +266,7 @@ export default {
       ownedNodes: new Set(),
       discoveredNodes: new Set(),
       gatheredCredentials: [],
+      supportedPorts: [],
       //
       vulnerabilityTypes: ["LOCAL", "REMOTE"],
       //
@@ -281,6 +304,7 @@ export default {
     this.listAllAttacks();
     this.getTotalReward();
     this.getCredentials();
+    this.getSupportedPorts();
   },
   computed: {
     labelSize() {
@@ -307,7 +331,7 @@ export default {
               properties: node["properties"],
               owned_string: node["owned_string"],
               vulnerabilities: node["vulnerabilities"],
-              _color: ownedNodeColor,
+              _color: discoveredNodeColor,
               svgSym: rectSvg,
               action: "None",
               // outcome (edge) modification
@@ -355,14 +379,13 @@ export default {
             let nodeToUpdate = this.nodeMap.get(node.id);
             if (nodeToUpdate) {
               this.$set(nodeToUpdate, status, node.status);
-              if (node.status == "discovered") {
-                this.$set(nodeToUpdate, "_color", discoveredNodeColor);
-              } else if (node.status == "owned") {
+              if (node.status == "owned") {
                 this.ownedNodes.add(node.id);
+                this.$set(nodeToUpdate, "_color", ownedNodeColor);
               }
               if (!this.discoveredNodes.has(node.id)) {
-                this.nodes.push(nodeToUpdate);
                 this.discoveredNodes.add(node.id);
+                this.nodes.push(nodeToUpdate);
               }
             }
           }
@@ -392,10 +415,15 @@ export default {
           response.data.result.forEach((node) => {
             this.attackMap.set(node.id, node);
           });
+          // update selected node in case new attacks are available
+          if(this.selectedNode){
+            let id = this.selectedNode.id;
+            this.selectedNode = this.attackMap.get(id)
+          }
           this.logs = response.data.logs;
           // select an attack if one has not been selected
-          if (!this.selectedAttack && response.data.result.length) {
-            this.selectedAttack = response.data.result[0];
+          if (!this.selectedNode && response.data.result.length) {
+            this.selectedNode = response.data.result[0];
           }
         })
         .catch((error) => {
@@ -410,7 +438,7 @@ export default {
         .then((response) => {
           this.reward = response.data.result;
           this.logs = response.data.logs;
-          this.cachedRewards = response.data.cachedRewards;
+          this.cachedRewards = response.data.cached_rewards;
         })
         .catch((error) => {
           console.log({ error });
@@ -424,7 +452,19 @@ export default {
         .then((response) => {
           this.gatheredCredentials = response.data.result;
           this.logs = response.data.logs;
-          this.cachedRewards = response.data.cachedRewards;
+          this.cachedRewards = response.data.cached_rewards;
+        })
+        .catch((error) => {
+          console.log({ error });
+          alert(error.response.data);
+        });
+    },
+
+    getSupportedPorts() {
+      axios
+        .get("/api/get_supported_ports")
+        .then((response) => {
+          this.supportedPorts = response.data;
         })
         .catch((error) => {
           console.log({ error });
@@ -434,8 +474,8 @@ export default {
 
     runAttack(vulnerabilityId, attackType) {
       let formData = new FormData();
-      formData.append("targetNodeId", this.selectedAttack.id);
-      formData.append("sourceNodeId", this.selectedAttackSourceNode);
+      formData.append("targetNodeId", this.selectedNode.id);
+      formData.append("sourceNodeId", this.selectedNodeSourceNode);
       formData.append("vulnerabilityId", vulnerabilityId);
       let url =
         attackType == "local_attacks"
@@ -462,12 +502,12 @@ export default {
         });
     },
 
-    connectAndInfect(credential) {
+    connectAndInfect() {
       let formData = new FormData();
-      formData.append("targetNodeId", credential.node);
-      formData.append("sourceNodeId", this.selectedInfectSourceNode);
-      formData.append("credentialId", credential.credential);
-      formData.append("port", credential.port);
+      formData.append("targetNodeId", this.selectedNode.id);
+      formData.append("sourceNodeId", this.selectedConnectSourceNode);
+      formData.append("credentialId", this.selectedCredential.credential);
+      formData.append("port", this.selectedPort);
       axios
         .post("/api/connect_and_infect", formData)
         .then((response) => {
@@ -489,7 +529,7 @@ export default {
     },
 
     nodeClick(event, node) {
-      this.selectedAttack = this.attackMap.get(node.id);
+      this.selectedNode = this.attackMap.get(node.id);
     },
 
     linkCb(link) {
