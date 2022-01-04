@@ -3,6 +3,9 @@
     <SideBar/>
     <v-main>
       <v-container fluid>
+        <v-fade-transition mode="out-in">
+          <router-view/>
+        </v-fade-transition>
         <router-view/>
       </v-container>
     </v-main>

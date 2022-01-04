@@ -3,7 +3,7 @@
     <!-- main container divides graph and node properties -->
     <v-container fluid>
       <v-row>
-        <v-col>
+        <v-col cols="5">
           <v-card-title class="text-capitalize"> {{ tool }} mode</v-card-title>
           <v-card outlined>
             <d3-network
@@ -400,7 +400,7 @@
                         <v-col>
                           <v-combobox
                             v-model="service.allowedCredentials"
-                            label="properties"
+                            label="allowed credentials"
                             hint="Credentials allowed to authenticate with the service"
                             :search-input.sync="search"
                             :items="credentialOptions"
@@ -414,15 +414,15 @@
                               <v-list-item>
                                 <v-list-item-content>
                                   <v-list-item-title>
-                                    Press <kbd>enter</kbd> to create "<strong>{{
+                                    Press enter to create "<strong>{{
                                       search
                                     }}</strong
                                     >"
                                   </v-list-item-title>
                                 </v-list-item-content>
                               </v-list-item>
-                            </template></v-combobox
-                          >
+                            </template>
+                          </v-combobox>
                         </v-col>
                         <v-col>
                           <v-btn @click="removeService(serviceIndex)">

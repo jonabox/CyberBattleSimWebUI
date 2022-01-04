@@ -26,13 +26,13 @@ Vue.use(VueRouter)
     component: Details,
   },
   {
-    path: '/Simulate',
-    name: 'Simulate',
+    path: '/Human_Player',
+    name: 'Human Player',
     component: Simulate,
   },
   {
-    path: '/Agent',
-    name: 'Agent',
+    path: '/AI_Learning',
+    name: 'AI Learning',
     component: Agent,
   },
   {
