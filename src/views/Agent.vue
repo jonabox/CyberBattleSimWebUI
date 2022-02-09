@@ -15,7 +15,7 @@
           <v-container>
             <v-form ref="form" v-model="valid" lazy-validation>
               <v-row>
-                <v-col>
+                <v-col v-if="!showFigures">
                   <v-text-field
                     v-model="parameters.iterationCount"
                     label="iteration count"
@@ -59,7 +59,7 @@
                   <v-text-field
                     v-model="parameters.epsilon"
                     label="epsilon"
-                    hint="Explore vs Exploit: 0.0 to exploit the learnt policy only without exploration vs 1.0 to explore purely randomly"
+                    hint="Explore vs Exploit: 0.0 to exploit the learned policy only without exploration vs 1.0 to explore purely randomly"
                     :rules="floatRules"
                     persistent-hint
                   ></v-text-field>
@@ -84,7 +84,7 @@
                   <v-text-field
                     v-model="parameters.attackerGoal.reward"
                     label="Reward"
-                    hint="Creates goal to reach at least the specifed cumulative total reward"
+                    hint="Creates goal to reach at least the specified cumulative total reward"
                     :rules="floatRules"
                     persistent-hint
                   ></v-text-field>
@@ -151,7 +151,7 @@
           </v-container>
         </v-card>
       </v-col>
-      <v-col v-show="showLiveResults || true">
+      <v-col v-show="showLiveResults">
         <v-card class="mb-4">
           <v-alert v-if="!isRunning && showLiveResults" type="success" dense>
             <v-row align="center">
@@ -176,9 +176,11 @@
           />
           <v-card-actions v-show="isRunning">
             <v-slider
+              v-model="refreshRate"
               :label="refreshRate + ' second refresh rate'"
-              persistent-hint 
-              light
+              persistent-hint
+              color="secondary lighten-1"
+              track-color="primary"
               min="1"
               max="10"
               thumb-label
@@ -189,7 +191,7 @@
             <v-spacer />
           </v-card-actions>
         </v-card>
-        <v-card v-if="showFigures || true">
+        <v-card v-if="showFigures">
           <v-tabs v-model="tab" background-color="transparent" grow>
             <v-tab>Progression</v-tab>
             <v-tab>Durations</v-tab>

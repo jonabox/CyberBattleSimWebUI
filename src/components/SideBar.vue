@@ -1,8 +1,8 @@
 <template>
   <v-navigation-drawer
     class="primary"
-    expand-on-hover
     disable-resize-watcher
+    mini-variant
     floating
     permanent
     app

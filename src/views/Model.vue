@@ -3,7 +3,7 @@
     <!-- main container divides graph and node properties -->
     <v-container fluid>
       <v-row>
-        <v-col cols="5">
+        <v-col auto>
           <v-card-title class="text-capitalize"> {{ tool }} mode</v-card-title>
           <v-card outlined>
             <d3-network
