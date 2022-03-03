@@ -1,6 +1,6 @@
 <template>
   <v-app color="secondary">
-    <!-- <SideBar/> -->
+    <SideBar/>
     <v-main>
       <v-container fluid>
         <v-fade-transition mode="out-in">
@@ -12,13 +12,13 @@
 </template>
 
 <script>
-// import SideBar from "./components/SideBar";
+import SideBar from "./components/SideBar";
 
 export default {
   name: "App",
 
   components: {
-    // SideBar,
+    SideBar,
   },
 
   data: () => ({

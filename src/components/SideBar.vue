@@ -3,8 +3,6 @@
     class="primary"
     disable-resize-watcher
     mini-variant
-    floating
-    permanent
     app
   >
     <v-list>
