@@ -1,6 +1,11 @@
-# scenario-based-simulation-platform
+# CyberBattleSim Web Platform
 
-## Project setup
+## Backend setup
+
+Install and run [CyberBattleSim's forked repository](https://github.com/jonabox/CyberBattleSim/) (modified to serve as a backend).
+
+## Frontend setup
+
 ```
 yarn install
 ```
